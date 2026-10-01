@@ -946,7 +946,7 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
                   type="button"
                   onClick={() => setShowQuitConfirm(true)}
                   title="Quit to Map"
-                  aria-label={`Level ${currentLevelNumber}, click to quit to map`}
+                  aria-label={`Level ${currentLevelNumber}`}
                   className="level-title-btn"
                   style={{
                     background: 'none',

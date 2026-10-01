@@ -27,9 +27,14 @@ test.describe('Sudoku Web App E2E Tests', () => {
     await expect(cells).toHaveCount(81)
 
     // Back to map button
-    const backBtn = page.getByRole('button', { name: /Quit to Map/i })
+    const backBtn = page.getByRole('button', { name: 'Quit to Map', exact: true })
     await expect(backBtn).toBeVisible()
     await backBtn.click()
+
+    // Confirm modal
+    const confirmBtn = page.getByRole('dialog').getByRole('button', { name: /Quit to Map/i })
+    await expect(confirmBtn).toBeVisible()
+    await confirmBtn.click()
 
     // Back on map
     await expect(page.getByRole('heading', { name: /Campaign Map/i })).toBeVisible()
