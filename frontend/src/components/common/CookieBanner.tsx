@@ -1,0 +1,101 @@
+/**
+ * Non-intrusive Cookie Consent Banner.
+ * Section 23:
+ * "We use essential cookies to keep your game experience working. [ ACCEPT ] [ SETTINGS ]"
+ * Remembers consent in localStorage and does not cover gameplay controls.
+ */
+
+import React, { useState, useEffect } from 'react'
+
+export interface CookieBannerProps {
+  onOpenSettings: () => void
+}
+
+export const CookieBanner: React.FC<CookieBannerProps> = ({ onOpenSettings }) => {
+  const [visible, setVisible] = useState<boolean>(false)
+
+  useEffect(() => {
+    try {
+      const consent = localStorage.getItem('sudoku_cookie_consent')
+      if (!consent) {
+        setVisible(true)
+      }
+    } catch {
+      // LocalStorage unavailable
+    }
+  }, [])
+
+  const handleAccept = () => {
+    try {
+      localStorage.setItem('sudoku_cookie_consent', 'accepted')
+    } catch {
+      // Ignore
+    }
+    setVisible(false)
+  }
+
+  if (!visible) return null
+
+  return (
+    <aside
+      aria-label="Cookie consent"
+      style={{
+        width: '100%',
+        backgroundColor: 'var(--bg-surface)',
+        borderBottom: '1px solid var(--border-subtle)',
+        padding: '8px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexWrap: 'wrap',
+        gap: '12px',
+        zIndex: 40,
+      }}
+    >
+      <p
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '0.78rem',
+          color: 'var(--text-high)',
+          margin: 0,
+          textAlign: 'center',
+        }}
+      >
+        We use essential cookies to keep your game experience working.
+      </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button
+          type="button"
+          onClick={handleAccept}
+          className="ui-btn ui-btn-primary"
+          style={{
+            padding: '4px 12px',
+            minHeight: '32px',
+            fontSize: '0.72rem',
+            fontWeight: 700,
+          }}
+        >
+          ACCEPT
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            handleAccept()
+            onOpenSettings()
+          }}
+          className="ui-btn ui-btn-outline"
+          style={{
+            padding: '4px 12px',
+            minHeight: '32px',
+            fontSize: '0.72rem',
+            fontWeight: 600,
+          }}
+        >
+          SETTINGS
+        </button>
+      </div>
+    </aside>
+  )
+}

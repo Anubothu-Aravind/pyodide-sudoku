@@ -1,0 +1,16 @@
+{
+  "name": "Sudoku & Logic Solver",
+  "short_name": "Sudoku",
+  "description": "Interactive Sudoku with endless campaign, free play, and step-by-step visual solver powered by Pyodide.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F8F9FA",
+  "theme_color": "#1D4ED8",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
