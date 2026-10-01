@@ -1,0 +1,16 @@
+{
+  "name": "sudoku-pyodide-app",
+  "private": true,
+  "scripts": {
+    "prepare-py": "python3 scripts/package_core.py",
+    "dev": "npm run prepare-py && npm run dev --prefix frontend",
+    "build": "npm run prepare-py && npm run build --prefix frontend",
+    "test:py": "source .venv/bin/activate && pytest",
+    "test:fe": "npm run test --prefix frontend",
+    "test:e2e": "npm run test:e2e --prefix frontend",
+    "test": "npm run test:py && npm run test:fe",
+    "lint:py": "source .venv/bin/activate && ruff check sudoku tests && mypy --strict sudoku",
+    "lint:fe": "npm run lint --prefix frontend",
+    "lint": "npm run lint:py && npm run lint:fe"
+  }
+}

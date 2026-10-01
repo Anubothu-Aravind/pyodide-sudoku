@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sudoku-solver-generator"
+version = "0.1.0"
+description = "Sudoku Generator and Solver with backtracking, constraint propagation, pruning, and property tests"
+authors = [{ name = "Sudoku Project Team" }]
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "hypothesis>=6.0",
+]
+
+[project.scripts]
+sudoku = "sudoku.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sudoku*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-v --strict-markers"

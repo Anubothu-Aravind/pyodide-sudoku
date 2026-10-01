@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  python-quality:
+    name: Python Lint, Typecheck & Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff Lint Check
+        run: ruff check sudoku tests
+
+      - name: Mypy Strict Type Check
+        run: mypy --strict sudoku
+
+      - name: Pytest with Coverage
+        run: pytest --cov=sudoku --cov-fail-under=90
+
+  frontend-e2e:
+    name: Frontend Build, Vitest & Playwright E2E
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python Core
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci || npm install
+
+      - name: Package Python Core for Pyodide
+        working-directory: ./frontend
+        run: npm run prepare-py
+
+      - name: Frontend Linter
+        working-directory: ./frontend
+        run: npm run lint
+
+      - name: Frontend Vitest Unit Tests
+        working-directory: ./frontend
+        run: npm run test
+
+      - name: Frontend Build
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Install Playwright Browsers
+        working-directory: ./frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E Tests
+        working-directory: ./frontend
+        run: npm run test:e2e

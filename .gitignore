@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.coverage
+.hypothesis/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+test-results/
+playwright-report/
