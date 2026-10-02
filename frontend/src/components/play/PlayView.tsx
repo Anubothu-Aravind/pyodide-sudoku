@@ -33,10 +33,13 @@ import {
   RotateCw,
   Eraser,
   Info,
+  FileText,
 } from 'lucide-react'
 
+export type PlayDifficulty = Difficulty | 'blank'
+
 export interface PlayViewProps {
-  initialDifficulty?: Difficulty
+  initialDifficulty?: PlayDifficulty
   initialSeed?: string
   initialPuzzle?: string
   initialSubMode?: 'play' | 'solver'
@@ -54,7 +57,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
   onWatchSolver: _onWatchSolver,
   onGoHome,
 }) => {
-  const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty)
+  const [difficulty, setDifficulty] = useState<PlayDifficulty>(initialDifficulty)
   const [activeSeed, setActiveSeed] = useState<string>(initialSeed || `seed_${Math.random().toString(36).slice(2)}`)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [hintMessage, setHintMessage] = useState<string | null>(null)
@@ -114,27 +117,46 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const variantIdRef = useRef<VariantId>(variantId)
+  variantIdRef.current = variantId
+  const difficultyRef = useRef<PlayDifficulty>(difficulty)
+  difficultyRef.current = difficulty
+
   // Run solver trace on puzzle
-  const runSolverTrace = useCallback(async (puzzleStr: string, type: 'smart' | 'naive' = 'smart') => {
-    setIsSolverTracing(true)
-    setIsSolverPlaying(false)
-    try {
-      const res =
-        type === 'naive'
-          ? await sudokuWorker.solveNaiveWithTrace(puzzleStr, 20000)
-          : await sudokuWorker.solveWithTrace(puzzleStr, 'propagate', 50000)
-      if (res.ok && res.events) {
-        setTraceResult(res)
-        setStepIndex(0)
-        lastSolvedGivensRef.current = puzzleStr
-        lastSolvedTypeRef.current = type
+  const runSolverTrace = useCallback(
+    async (
+      puzzleStr: string,
+      type: 'smart' | 'naive' = 'smart',
+      activeVariant: VariantId = variantIdRef.current
+    ) => {
+      setIsSolverTracing(true)
+      setIsSolverPlaying(false)
+      try {
+        let res: TraceSolveResult
+        if (activeVariant !== 'classic') {
+          res = await sudokuWorker.solveVariantPuzzleWithTrace(activeVariant, puzzleStr, 50000)
+        } else {
+          res =
+            type === 'naive'
+              ? await sudokuWorker.solveNaiveWithTrace(puzzleStr, 20000)
+              : await sudokuWorker.solveWithTrace(puzzleStr, 'propagate', 50000)
+        }
+        if (res.ok && res.events) {
+          setTraceResult(res)
+          setStepIndex(0)
+          lastSolvedGivensRef.current = puzzleStr
+          lastSolvedTypeRef.current = type
+        } else {
+          setTraceResult(res)
+        }
+      } catch (e) {
+        console.error('Solver trace error:', e)
+      } finally {
+        setIsSolverTracing(false)
       }
-    } catch (e) {
-      console.error('Solver trace error:', e)
-    } finally {
-      setIsSolverTracing(false)
-    }
-  }, [])
+    },
+    []
+  )
 
   const subModeRef = useRef<'play' | 'solver'>(subMode)
   subModeRef.current = subMode
@@ -147,9 +169,18 @@ export const PlayView: React.FC<PlayViewProps> = ({
     setSolverType(type)
     subModeRef.current = 'solver'
     solverTypeRef.current = type
-    if (state.givens && state.givens.replace(/\./g, '').replace(/0/g, '').length > 0) {
-      if (!traceResult || lastSolvedGivensRef.current !== state.givens || lastSolvedTypeRef.current !== type) {
-        runSolverTrace(state.givens, type)
+
+    const isBlankGrid =
+      difficultyRef.current === 'blank' ||
+      state.givens.replace(/\./g, '').replace(/0/g, '').length === 0
+    const puzzleToSolve =
+      isBlankGrid && state.cells.some((v) => v !== 0)
+        ? state.cells.map((v) => (v === 0 ? '.' : String(v))).join('')
+        : state.givens
+
+    if (puzzleToSolve && puzzleToSolve.replace(/\./g, '').replace(/0/g, '').length > 0) {
+      if (!traceResult || lastSolvedGivensRef.current !== puzzleToSolve || lastSolvedTypeRef.current !== type) {
+        runSolverTrace(puzzleToSolve, type, variantIdRef.current)
       }
     }
     setTimeout(() => {
@@ -159,7 +190,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
   // Load new game or restore saved game
   const loadNewGame = useCallback(
-    async (diff: Difficulty, seedStr: string, variant: VariantId = 'classic') => {
+    async (diff: PlayDifficulty, seedStr: string, variant: VariantId = 'classic') => {
       setIsLoading(true)
       setHintMessage(null)
       setIsCheckNotice(null)
@@ -169,12 +200,15 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
       try {
         let puzzle: string, solution: string
-        if (variant === 'diagonal') {
+        if (diff === 'blank') {
+          puzzle = '.'.repeat(81)
+          solution = ''
+        } else if (variant === 'diagonal') {
           const res = await sudokuWorker.generateDiagonalPuzzle(diff, seedStr, true)
           if (!res.ok) throw new Error(res.error || 'Diagonal generation failed')
           puzzle = res.puzzle
           solution = res.solution
-        } else if (variant === 'windoku' || variant === 'center-dot' || variant === 'asterisk') {
+        } else if (variant !== 'classic') {
           const res = await sudokuWorker.generateVariantPuzzle(variant, diff, seedStr, true)
           if (!res.ok) throw new Error(res.error || `${variant} generation failed`)
           puzzle = res.puzzle
@@ -189,8 +223,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
           givens: puzzle,
           solution,
         })
-        if (subModeRef.current === 'solver') {
-          runSolverTrace(puzzle, solverTypeRef.current)
+        if (subModeRef.current === 'solver' && diff !== 'blank') {
+          runSolverTrace(puzzle, solverTypeRef.current, variant)
         }
       } catch (err: any) {
         console.error('Failed to generate puzzle:', err)
@@ -214,19 +248,27 @@ export const PlayView: React.FC<PlayViewProps> = ({
       givens: state.givens,
       solution: state.solution,
     })
-    if (subModeRef.current === 'solver') {
-      runSolverTrace(state.givens, solverTypeRef.current)
+    if (subModeRef.current === 'solver' && difficultyRef.current !== 'blank') {
+      runSolverTrace(state.givens, solverTypeRef.current, variantIdRef.current)
     }
   }, [state.givens, state.solution, runSolverTrace])
 
   // Ensure solver traces when switched to solver or when givens update
   useEffect(() => {
-    if (subMode === 'solver' && state.givens && state.givens.replace(/\./g, '').replace(/0/g, '').length > 0) {
-      if (!traceResult || lastSolvedGivensRef.current !== state.givens || lastSolvedTypeRef.current !== solverType) {
-        runSolverTrace(state.givens, solverType)
+    const isBlankGrid =
+      difficulty === 'blank' ||
+      state.givens.replace(/\./g, '').replace(/0/g, '').length === 0
+    const puzzleToSolve =
+      isBlankGrid && state.cells.some((v) => v !== 0)
+        ? state.cells.map((v) => (v === 0 ? '.' : String(v))).join('')
+        : state.givens
+
+    if (subMode === 'solver' && puzzleToSolve && puzzleToSolve.replace(/\./g, '').replace(/0/g, '').length > 0) {
+      if (!traceResult || lastSolvedGivensRef.current !== puzzleToSolve || lastSolvedTypeRef.current !== solverType) {
+        runSolverTrace(puzzleToSolve, solverType, variantId)
       }
     }
-  }, [subMode, solverType, state.givens, traceResult, runSolverTrace])
+  }, [subMode, solverType, state.givens, state.cells, difficulty, variantId, traceResult, runSolverTrace])
 
   // Initialize or check for autosaved in-progress game
   useEffect(() => {
@@ -349,10 +391,12 @@ export const PlayView: React.FC<PlayViewProps> = ({
         const nextStats = { ...stats }
         nextStats.totalSolved++
         nextStats.totalTimeMs += state.elapsedMs
-        nextStats.solvedByDifficulty[difficulty]++
-        const prevFastest = nextStats.fastestByDifficulty[difficulty] || 0
-        if (prevFastest === 0 || state.elapsedMs < prevFastest) {
-          nextStats.fastestByDifficulty[difficulty] = state.elapsedMs
+        if (difficulty !== 'blank' && difficulty in nextStats.solvedByDifficulty) {
+          nextStats.solvedByDifficulty[difficulty]++
+          const prevFastest = nextStats.fastestByDifficulty[difficulty] || 0
+          if (prevFastest === 0 || state.elapsedMs < prevFastest) {
+            nextStats.fastestByDifficulty[difficulty] = state.elapsedMs
+          }
         }
         storage.saveStats(nextStats)
       })
@@ -425,15 +469,35 @@ export const PlayView: React.FC<PlayViewProps> = ({
   // Check puzzle validity
   const handleCheckPuzzle = async () => {
     const gridStr = state.cells.map((v) => (v === 0 ? '.' : String(v))).join('')
-    const checkRes = await sudokuWorker.check(gridStr)
-    if (!checkRes.valid) {
-      setIsCheckNotice('Board has conflicts! Check highlighted red cells.')
-    } else if (checkRes.solvable) {
-      setIsCheckNotice('All filled cells are correct so far!')
-    } else {
-      setIsCheckNotice('Current placement makes puzzle unsolvable.')
+    const placedCount = state.cells.filter((v) => v !== 0).length
+
+    if (placedCount === 0) {
+      setIsCheckNotice('Board is completely empty. Enter digits to check.')
+      setTimeout(() => setIsCheckNotice(null), 4000)
+      return
     }
-    setTimeout(() => setIsCheckNotice(null), 4000)
+
+    try {
+      const checkRes =
+        variantId !== 'classic'
+          ? await sudokuWorker.validateVariantSolution(variantId, gridStr)
+          : await sudokuWorker.check(gridStr)
+
+      if (!checkRes.ok) {
+        setIsCheckNotice('Could not validate board: ' + (checkRes.error || 'Unknown error'))
+      } else if (!checkRes.valid) {
+        setIsCheckNotice('Board has conflicts! Check highlighted red cells.')
+      } else if (placedCount === 81) {
+        setIsCheckNotice('Congratulations! The puzzle is completely solved and valid!')
+      } else if (checkRes.solvable) {
+        setIsCheckNotice('All entered digits are valid so far, and the puzzle is solvable!')
+      } else {
+        setIsCheckNotice('Digits entered so far have no direct conflicts, but make the puzzle unsolvable.')
+      }
+    } catch (err: any) {
+      setIsCheckNotice('Validation error: ' + (err?.message || 'Check failed'))
+    }
+    setTimeout(() => setIsCheckNotice(null), 5000)
   }
 
   const handleShare = () => {
@@ -707,7 +771,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                 <select
                   value={difficulty}
                   onChange={(e) => {
-                    const d = e.target.value as Difficulty
+                    const d = e.target.value as PlayDifficulty
                     setDifficulty(d)
                     const newSeed = `seed_${Math.random().toString(36).slice(2)}`
                     setActiveSeed(newSeed)
@@ -728,6 +792,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   <option value="medium">Medium</option>
                   <option value="hard">Hard</option>
                   <option value="expert">Expert</option>
+                  <option value="blank">Blank Grid</option>
                 </select>
 
                 {/* Variant selector with Info Popover */}
@@ -738,6 +803,10 @@ export const PlayView: React.FC<PlayViewProps> = ({
                       const v = e.target.value as VariantId
                       setVariantId(v)
                       setShowVariantInfo(false)
+                      // Exit solver mode when changing variant to avoid stuck spinner
+                      setSubMode('play')
+                      setTraceResult(null)
+                      setIsSolverTracing(false)
                       try {
                         localStorage.setItem('sudoku_free_variant', v)
                       } catch {}
@@ -796,12 +865,14 @@ export const PlayView: React.FC<PlayViewProps> = ({
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => {
                     const newSeed = `seed_${Math.random().toString(36).slice(2)}`
                     setActiveSeed(newSeed)
                     loadNewGame(difficulty, newSeed, variantId)
                   }}
                   title="Generate new random puzzle"
+                  aria-label="Generate new random puzzle"
                   style={{
                     padding: '6px',
                     borderRadius: 'var(--radius-sm)',
@@ -813,6 +884,35 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   }}
                 >
                   <RefreshCw size={18} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDifficulty('blank')
+                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
+                    setActiveSeed(newSeed)
+                    loadNewGame('blank', newSeed, variantId)
+                  }}
+                  title="Clear to blank grid (empty canvas for custom numbers)"
+                  aria-label="Blank Grid"
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: `1px solid ${difficulty === 'blank' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
+                    backgroundColor: difficulty === 'blank' ? 'rgba(78,161,255,0.12)' : 'var(--bg-base)',
+                    color: difficulty === 'blank' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                    fontWeight: 600,
+                    fontSize: '0.82rem',
+                    minHeight: '36px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <FileText size={15} />
+                  <span>Blank</span>
                 </button>
               </div>
 
@@ -1107,16 +1207,39 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
             {isCheckNotice && subMode === 'play' && (
               <div
+                role="status"
+                aria-live="polite"
                 style={{
-                  padding: '10px 14px',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-subtle)',
+                  padding: '11px 14px',
+                  backgroundColor:
+                    isCheckNotice.includes('conflicts') || isCheckNotice.includes('unsolvable')
+                      ? 'rgba(239, 68, 68, 0.12)'
+                      : isCheckNotice.includes('Congratulations') || isCheckNotice.includes('solvable') || isCheckNotice.includes('valid')
+                      ? 'rgba(16, 185, 129, 0.12)'
+                      : 'var(--bg-surface)',
+                  color:
+                    isCheckNotice.includes('conflicts') || isCheckNotice.includes('unsolvable')
+                      ? 'var(--accent-red, #ef4444)'
+                      : isCheckNotice.includes('Congratulations') || isCheckNotice.includes('solvable') || isCheckNotice.includes('valid')
+                      ? 'var(--color-logic, #10b981)'
+                      : 'var(--text-primary)',
+                  border: `1px solid ${
+                    isCheckNotice.includes('conflicts') || isCheckNotice.includes('unsolvable')
+                      ? 'var(--accent-red, #ef4444)'
+                      : isCheckNotice.includes('Congratulations') || isCheckNotice.includes('solvable') || isCheckNotice.includes('valid')
+                      ? 'var(--color-logic, #10b981)'
+                      : 'var(--border-subtle)'
+                  }`,
                   borderRadius: 'var(--radius-sm)',
-                  fontSize: '0.85rem',
+                  fontSize: '0.86rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
                 }}
               >
-                {isCheckNotice}
+                <CheckCircle size={16} />
+                <span>{isCheckNotice}</span>
               </div>
             )}
 
@@ -1377,7 +1500,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700 }}>Puzzle Solved!</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-              Congratulations! You completed the {difficulty} puzzle.
+              Congratulations! You completed the {difficulty === 'blank' ? 'custom' : difficulty} {variantConfig.metadata.name} puzzle.
             </p>
 
             <div
@@ -1415,7 +1538,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                 onClick={() => {
                   const newSeed = `seed_${Math.random().toString(36).slice(2)}`
                   setActiveSeed(newSeed)
-                  loadNewGame(difficulty, newSeed)
+                  loadNewGame(difficulty, newSeed, variantId)
                 }}
                 style={{
                   flex: 1,

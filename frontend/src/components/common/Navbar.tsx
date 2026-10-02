@@ -124,6 +124,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }}
         >
           <button
+            id="nav-campaign-btn"
             type="button"
             onClick={() => onSelectMode('levels')}
             aria-selected={currentMode === 'levels'}
@@ -145,6 +146,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
 
           <button
+            id="nav-freeplay-btn"
             type="button"
             onClick={() => onSelectMode('play')}
             aria-selected={currentMode === 'play'}
@@ -169,6 +171,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Global Progress Stars & Settings */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div
+            id="nav-streak-badge"
             title={`${totalStars} Stars Earned`}
             style={{
               display: 'flex',
@@ -186,6 +189,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           <button
+            id="nav-settings-btn"
             type="button"
             onClick={onOpenSettings}
             aria-label="Open settings"

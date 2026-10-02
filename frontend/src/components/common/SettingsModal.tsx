@@ -19,13 +19,14 @@ import {
   type ImportPreview,
 } from '../../storage/exportImport'
 import type { ValidatedUserSettings } from '../../storage/validation'
-import { X, Download, Upload, Trash2 } from 'lucide-react'
+import { X, Download, Upload, Trash2, Map } from 'lucide-react'
 
 export interface SettingsModalProps {
   isOpen: boolean
   onClose: () => void
   onSettingsChanged: (settings: ValidatedUserSettings) => void
   onProgressUpdated: () => void
+  onStartTour?: () => void
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -33,6 +34,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   onSettingsChanged,
   onProgressUpdated,
+  onStartTour,
 }) => {
   const [settings, setSettings] = useState<ValidatedUserSettings | null>(null)
   const [importJson, setImportJson] = useState<string>('')
@@ -476,6 +478,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <span style={{ fontSize: '0.78rem', color: 'var(--accent-blue)', fontFamily: 'var(--font-arcade)' }}>
               {importError}
             </span>
+          )}
+
+          {/* Guided Tour */}
+          {onStartTour && (
+            <button
+              type="button"
+              onClick={onStartTour}
+              className="ui-btn ui-btn-outline"
+              style={{ fontSize: '0.78rem', padding: '10px', width: '100%', marginTop: '4px' }}
+            >
+              <Map size={15} />
+              <span>TAKE THE TOUR</span>
+            </button>
           )}
         </div>
 

@@ -11,6 +11,7 @@ import { PlayView } from './components/play/PlayView'
 import { SettingsModal } from './components/common/SettingsModal'
 import { CookieBanner } from './components/common/CookieBanner'
 import { BackToTop } from './components/common/BackToTop'
+import { AppTour } from './components/common/AppTour'
 import { storage, DEFAULT_SETTINGS } from './storage/db'
 import type { ValidatedUserSettings } from './storage/validation'
 import type { Difficulty } from './types'
@@ -24,6 +25,7 @@ export const App: React.FC = () => {
   const [totalStars, setTotalStars] = useState<number>(0)
   const [streakDays, setStreakDays] = useState<number>(0)
   const [storageBanner, setStorageBanner] = useState<boolean>(false)
+  const [tourTriggerCount, setTourTriggerCount] = useState<number>(0)
 
   // Cross-link puzzle transfer state
   const [playTargetPuzzle, setPlayTargetPuzzle] = useState<string | undefined>()
@@ -289,6 +291,10 @@ export const App: React.FC = () => {
           applyTheme(s.theme)
         }}
         onProgressUpdated={handleProgressUpdated}
+        onStartTour={() => {
+          setIsSettingsOpen(false)
+          setTourTriggerCount((c) => c + 1)
+        }}
       />
 
       {/* Desktop Cookie Consent Banner (at bottom) */}
@@ -304,6 +310,9 @@ export const App: React.FC = () => {
 
       {/* Back To Top Button */}
       <BackToTop />
+
+      {/* Guided Tour (auto-start first visit, re-triggerable from Settings) */}
+      <AppTour autoStart triggerCount={tourTriggerCount} />
     </div>
   )
 }

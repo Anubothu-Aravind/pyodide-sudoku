@@ -15,6 +15,7 @@ import {
   type VariantId,
 } from '../index'
 import { computeConflicts } from '../../reducers/playReducer'
+import { sudokuWorker } from '../../worker/sudokuWorkerClient'
 
 describe('Variant system', () => {
   // -----------------------------------------------------------------------
@@ -460,6 +461,27 @@ describe('Variant system', () => {
       // Restore
       cells[10] = originalVal10
       expect(computeConflicts(cells, groups).size).toBe(0)
+    })
+
+    it('exposes solveVariantPuzzleWithTrace and validateVariantSolution on worker client', () => {
+      expect(typeof sudokuWorker.solveVariantPuzzleWithTrace).toBe('function')
+      expect(typeof sudokuWorker.validateVariantSolution).toBe('function')
+    })
+
+    it('supports blank grid mode with zero initial conflicts and detects player conflicts', () => {
+      const emptyCells = Array(81).fill(0)
+      const config = getVariant('windoku')
+      const groups = config.constraints.validation.map((g) => g.cells)
+
+      // Blank board has zero conflicts
+      expect(computeConflicts(emptyCells, groups).size).toBe(0)
+
+      // Placing duplicates in top-left window causes conflict
+      emptyCells[10] = 7
+      emptyCells[20] = 7
+      const conflicts = computeConflicts(emptyCells, groups)
+      expect(conflicts.has(10)).toBe(true)
+      expect(conflicts.has(20)).toBe(true)
     })
   })
 })

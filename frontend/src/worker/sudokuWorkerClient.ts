@@ -315,9 +315,43 @@ export class SudokuWorkerClient {
     classic_valid: boolean
     diag_main_valid: boolean
     diag_anti_valid: boolean
+    is_complete?: boolean
+    solvable?: boolean
     error?: string
   }> {
     return this.request('validate_diagonal_solution', { grid_str: gridStr })
+  }
+
+  public solveVariantPuzzleWithTrace(
+    variant: string,
+    gridStr: string,
+    maxEvents: number = 50000
+  ): Promise<TraceSolveResult> {
+    const pyVariant = variant === 'center-dot' ? 'center_dot' : variant
+    return this.request('solve_variant_puzzle_with_trace', {
+      variant: pyVariant,
+      grid_str: gridStr,
+      max_events: maxEvents,
+    })
+  }
+
+  public validateVariantSolution(
+    variant: string,
+    gridStr: string
+  ): Promise<{
+    ok: boolean
+    valid: boolean
+    classic_valid?: boolean
+    variant?: string
+    is_complete?: boolean
+    solvable?: boolean
+    error?: string
+  }> {
+    const pyVariant = variant === 'center-dot' ? 'center_dot' : variant
+    return this.request('validate_variant_puzzle_solution', {
+      variant: pyVariant,
+      grid_str: gridStr,
+    })
   }
 
   public levelSpec(level: number): Promise<LevelSpec> {

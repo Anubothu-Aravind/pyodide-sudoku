@@ -81,6 +81,7 @@ VARIANT_EXTRA_GROUPS: dict[str, list[list[int]]] = {
     "diagonal": [MAIN_DIAGONAL, ANTI_DIAGONAL],
     "windoku": [WINDOKU_TL, WINDOKU_TR, WINDOKU_BL, WINDOKU_BR],
     "center_dot": [CENTER_DOT],
+    "center-dot": [CENTER_DOT],
     "asterisk": [ASTERISK],
     "girandola": [GIRANDOLA],
     "disjoint": DISJOINT_GROUPS,
@@ -106,6 +107,13 @@ VARIANT_META: dict[str, VariantMeta] = {
         ),
     },
     "center_dot": {
+        "name": "Center Dot Sudoku",
+        "description": (
+            "Classic Sudoku rules plus the center cell of each of the nine 3×3 boxes "
+            "forms an extra 9-cell group containing digits 1–9 exactly once."
+        ),
+    },
+    "center-dot": {
         "name": "Center Dot Sudoku",
         "description": (
             "Classic Sudoku rules plus the center cell of each of the nine 3×3 boxes "

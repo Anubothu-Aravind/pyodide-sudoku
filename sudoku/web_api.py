@@ -26,12 +26,9 @@ from sudoku.solver import BacktrackingSolver
 from sudoku.solver import hint as _hint
 from sudoku.solver import solve_with_trace as _solve_with_trace
 from sudoku.variants import (
+    VariantSolver,
     generate_variant as _generate_variant,
-)
-from sudoku.variants import (
     solve_variant_with_trace as _solve_variant_with_trace,
-)
-from sudoku.variants import (
     validate_variant_solution as _validate_variant_solution,
 )
 
@@ -264,12 +261,13 @@ def generate_variant_puzzle(
     symmetric: bool = True,
 ) -> dict[str, Any]:
     """Generate a puzzle for any supported variant with guaranteed unique solution."""
-    if variant == "classic":
+    v = variant.replace("-", "_")
+    if v == "classic":
         return generate(difficulty=difficulty, seed=seed, symmetric=symmetric)
-    if variant == "diagonal":
+    if v == "diagonal":
         return _generate_diagonal(difficulty=difficulty, seed=seed, symmetric=symmetric)
     return _generate_variant(
-        variant=variant, difficulty=difficulty, seed=seed, symmetric=symmetric
+        variant=v, difficulty=difficulty, seed=seed, symmetric=symmetric
     )
 
 
@@ -279,28 +277,70 @@ def solve_variant_puzzle_with_trace(
     max_events: int = 50_000,
 ) -> dict[str, Any]:
     """Solve any variant puzzle with step-by-step trace events."""
-    if variant == "classic":
+    v = variant.replace("-", "_")
+    if v == "classic":
         return solve_with_trace(grid_str=grid_str, mode="propagate", max_events=max_events)
-    if variant == "diagonal":
+    if v == "diagonal":
         return _solve_diagonal_with_trace(grid_str=grid_str, max_events=max_events)
     return _solve_variant_with_trace(
-        variant=variant, grid_str=grid_str, max_events=max_events
+        variant=v, grid_str=grid_str, max_events=max_events
     )
 
 
 def validate_variant_puzzle_solution(variant: str, grid_str: str) -> dict[str, Any]:
-    """Validate a completed puzzle against classic and variant constraints."""
-    if variant == "classic":
+    """Validate a completed or in-progress puzzle against classic and variant constraints."""
+    v = variant.replace("-", "_")
+    if v == "classic":
         try:
             grid = Grid.from_string(grid_str)
+            valid = grid.is_valid()
+            complete = grid.is_complete()
+            solvable = False
+            if valid:
+                solver = BacktrackingSolver()
+                solvable = solver.count_solutions(grid, limit=1) > 0
             return {
                 "ok": True,
-                "valid": grid.is_complete() and grid.is_valid(),
-                "classic_valid": grid.is_valid(),
+                "valid": valid,
+                "is_complete": complete,
+                "solvable": solvable,
+                "classic_valid": valid,
             }
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}
-    if variant == "diagonal":
-        return _validate_diagonal_solution(grid_str=grid_str)
-    return _validate_variant_solution(variant=variant, grid_str=grid_str)
+
+    if v == "diagonal":
+        diag_res = _validate_diagonal_solution(grid_str=grid_str)
+        if diag_res.get("ok"):
+            try:
+                g = Grid.from_string(grid_str)
+                diag_res["is_complete"] = g.is_complete()
+                if diag_res.get("valid"):
+                    if g.is_complete():
+                        diag_res["solvable"] = True
+                    else:
+                        from sudoku.diagonal import DiagonalSolver
+                        diag_res["solvable"] = DiagonalSolver().count_solutions(g, limit=1) > 0
+                else:
+                    diag_res["solvable"] = False
+            except Exception:
+                pass
+        return diag_res
+
+    var_res = _validate_variant_solution(variant=v, grid_str=grid_str)
+    if var_res.get("ok"):
+        try:
+            g = Grid.from_string(grid_str)
+            var_res["is_complete"] = g.is_complete()
+            if var_res.get("valid"):
+                if g.is_complete():
+                    var_res["solvable"] = True
+                else:
+                    var_res["solvable"] = VariantSolver(v).count_solutions(g, limit=1) > 0
+            else:
+                var_res["solvable"] = False
+        except Exception:
+            pass
+    return var_res
+
 
