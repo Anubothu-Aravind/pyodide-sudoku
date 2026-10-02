@@ -469,12 +469,12 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
   // Check puzzle validity
   const handleCheckPuzzle = async () => {
-    const cellsToCheck =
+    const rawDigits: number[] =
       subMode === 'solver' && currentFrame?.cells
-        ? currentFrame.cells
+        ? currentFrame.cells.map((c: any) => (typeof c === 'number' ? c : c.value))
         : state.cells
-    const gridStr = cellsToCheck.map((v) => (v === 0 ? '.' : String(v))).join('')
-    const placedCount = cellsToCheck.filter((v) => v !== 0).length
+    const gridStr = rawDigits.map((v) => (v === 0 ? '.' : String(v))).join('')
+    const placedCount = rawDigits.filter((v) => v !== 0).length
 
     if (placedCount === 0) {
       setIsCheckNotice('Board is completely empty. Enter digits to check.')
@@ -750,26 +750,24 @@ export const PlayView: React.FC<PlayViewProps> = ({
                 position: 'relative',
               }}
             >
-              {/* Row 1: Home + Difficulty */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+              {/* Row 1: Home + Difficulty + Refresh */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%' }}>
                 {onGoHome && (
                   <button
                     onClick={onGoHome}
                     title="Quit to Home (Campaign Levels)"
+                    className="ui-btn ui-btn-outline"
                     style={{
-                      padding: '5px 10px',
+                      height: '34px',
+                      padding: '0 10px',
                       borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'var(--bg-base)',
-                      border: '1px solid var(--border-subtle)',
-                      color: 'var(--text-primary)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '5px',
                       fontSize: '0.82rem',
                       fontWeight: 600,
-                      cursor: 'pointer',
+                      color: 'var(--text-primary)',
                       flexShrink: 0,
-                      height: '32px',
                     }}
                   >
                     <Home size={14} />
@@ -789,8 +787,10 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     setActiveSeed(newSeed)
                     loadNewGame(d, newSeed, variantId)
                   }}
+                  title="Difficulty"
                   style={{
-                    padding: '5px 8px',
+                    height: '34px',
+                    padding: '0 10px',
                     borderRadius: 'var(--radius-sm)',
                     border: '1px solid var(--border-subtle)',
                     backgroundColor: 'var(--bg-base)',
@@ -799,7 +799,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     fontSize: '0.82rem',
                     flex: 1,
                     minWidth: 0,
-                    height: '32px',
+                    cursor: 'pointer',
                   }}
                 >
                   <option value="beginner">Beginner</option>
@@ -809,9 +809,42 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   <option value="expert">Expert</option>
                   <option value="blank">Blank Grid</option>
                 </select>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetDiff = difficulty === 'blank' ? 'medium' : difficulty
+                    if (difficulty === 'blank') {
+                      setDifficulty('medium')
+                      try {
+                        localStorage.setItem('sudoku_free_difficulty', 'medium')
+                      } catch {}
+                    }
+                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
+                    setActiveSeed(newSeed)
+                    loadNewGame(targetDiff, newSeed, variantId)
+                  }}
+                  title="New puzzle"
+                  aria-label="New puzzle"
+                  className="ui-btn ui-btn-outline"
+                  style={{
+                    width: '34px',
+                    height: '34px',
+                    padding: 0,
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  <RefreshCw size={15} />
+                </button>
               </div>
 
-              {/* Row 2: Variant + Info + Blank Toggle + Refresh */}
+              {/* Row 2: Variant + Info + Blank Toggle */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', position: 'relative' }}>
                 <select
                   value={variantId}
@@ -831,16 +864,17 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   }}
                   title="Sudoku variant"
                   style={{
-                    padding: '5px 8px',
+                    height: '34px',
+                    padding: '0 8px',
                     borderRadius: 'var(--radius-sm)',
                     border: `1px solid ${variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
-                    backgroundColor: variantId !== 'classic' ? 'rgba(78,161,255,0.10)' : 'var(--bg-base)',
+                    backgroundColor: variantId !== 'classic' ? 'rgba(78,161,255,0.08)' : 'var(--bg-base)',
                     color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-primary)',
                     fontWeight: 600,
                     fontSize: '0.82rem',
                     flex: '1 1 auto',
                     minWidth: 0,
-                    height: '32px',
+                    cursor: 'pointer',
                   }}
                 >
                   <option value="classic">Classic</option>
@@ -861,8 +895,9 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     title="Variant rules & marked cells"
                     className="ui-btn ui-btn-outline"
                     style={{
-                      padding: '5px 8px',
-                      minHeight: '32px',
+                      width: '34px',
+                      height: '34px',
+                      padding: 0,
                       borderRadius: 'var(--radius-sm)',
                       display: 'flex',
                       alignItems: 'center',
@@ -897,18 +932,19 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   }}
                   title={difficulty === 'blank' ? 'Exit blank mode (load Medium puzzle)' : 'Clear to blank grid'}
                   aria-label={difficulty === 'blank' ? 'Exit Blank Grid' : 'Blank Grid'}
+                  className="ui-btn ui-btn-outline"
                   style={{
-                    padding: '5px 8px',
+                    height: '34px',
+                    padding: '0 10px',
                     borderRadius: 'var(--radius-sm)',
-                    border: `1px solid ${difficulty === 'blank' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
-                    backgroundColor: difficulty === 'blank' ? 'rgba(78,161,255,0.14)' : 'var(--bg-base)',
-                    color: difficulty === 'blank' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                    border: `1px solid ${difficulty === 'blank' ? 'var(--color-conflict, #ef4444)' : 'var(--border-subtle)'}`,
+                    backgroundColor: difficulty === 'blank' ? 'rgba(239, 68, 68, 0.10)' : 'var(--bg-base)',
+                    color: difficulty === 'blank' ? 'var(--color-conflict, #ef4444)' : 'var(--text-secondary)',
                     fontWeight: 600,
                     fontSize: '0.8rem',
-                    minHeight: '32px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px',
+                    gap: '5px',
                     cursor: 'pointer',
                     flexShrink: 0,
                   }}
@@ -916,108 +952,135 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   {difficulty === 'blank' ? <X size={14} /> : <FileText size={14} />}
                   <span>{difficulty === 'blank' ? 'Exit Blank' : 'Blank'}</span>
                 </button>
-
-                {/* Refresh / New Puzzle Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetDiff = difficulty === 'blank' ? 'medium' : difficulty
-                    if (difficulty === 'blank') {
-                      setDifficulty('medium')
-                      try {
-                        localStorage.setItem('sudoku_free_difficulty', 'medium')
-                      } catch {}
-                    }
-                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
-                    setActiveSeed(newSeed)
-                    loadNewGame(targetDiff, newSeed, variantId)
-                  }}
-                  title="Generate new random puzzle"
-                  aria-label="Generate new random puzzle"
-                  style={{
-                    padding: '5px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--text-secondary)',
-                    minHeight: '32px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                  }}
-                >
-                  <RefreshCw size={16} />
-                </button>
               </div>
 
-              {/* Timer & Pause */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
-                  className="tabular-nums"
-                  style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}
-                >
-                  {formatTimer(state.elapsedMs)}
-                </span>
-                <button
-                  onClick={() => dispatch({ type: 'SET_PAUSED', paused: !state.isPaused })}
-                  aria-label={state.isPaused ? 'Resume game' : 'Pause game'}
-                  style={{
-                    padding: '6px',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--text-secondary)',
-                    minHeight: '36px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {state.isPaused ? <Play size={18} /> : <Pause size={18} />}
-                </button>
+              {/* Row 3: Cohesive Dashboard Strip (Timer + Controls + Stats) */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '7px 10px',
+                  backgroundColor: 'var(--bg-base)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-subtle)',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {/* Left: Timer + Controls */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span
+                    className="tabular-nums"
+                    style={{
+                      fontSize: '1.08rem',
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-display)',
+                      color: 'var(--text-primary)',
+                      letterSpacing: '0.04em',
+                      minWidth: '52px',
+                    }}
+                  >
+                    {formatTimer(state.elapsedMs)}
+                  </span>
+                  <button
+                    onClick={() => dispatch({ type: 'SET_PAUSED', paused: !state.isPaused })}
+                    aria-label={state.isPaused ? 'Resume game' : 'Pause game'}
+                    title={state.isPaused ? 'Resume' : 'Pause'}
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-surface)',
+                      color: 'var(--text-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    {state.isPaused ? <Play size={13} /> : <Pause size={13} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowResetConfirm(true)}
+                    aria-label="Reset puzzle"
+                    title="Reset puzzle"
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--bg-surface)',
+                      color: 'var(--text-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    <RotateCcw size={13} />
+                  </button>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowResetConfirm(true)}
-                  aria-label="Reset puzzle"
-                  title="Reset puzzle"
-                  style={{
-                    padding: '6px',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--text-secondary)',
-                    minHeight: '36px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <RotateCcw size={18} />
-                </button>
+                {/* Right: Mistakes & Hints Pill Badges */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span
+                    style={{
+                      fontSize: '0.73rem',
+                      fontWeight: 600,
+                      color: state.mistakes > 0 ? 'var(--color-conflict, #ef4444)' : 'var(--text-muted)',
+                      backgroundColor: state.mistakes > 0 ? 'rgba(239, 68, 68, 0.10)' : 'var(--bg-surface)',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    Mistakes: <strong style={{ color: state.mistakes > 0 ? 'var(--color-conflict, #ef4444)' : 'var(--text-primary)' }}>{state.mistakes}</strong>
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.73rem',
+                      fontWeight: 600,
+                      color: 'var(--text-muted)',
+                      backgroundColor: 'var(--bg-surface)',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    Hints: <strong style={{ color: 'var(--text-primary)' }}>{state.hintsUsed}</strong>
+                  </span>
+                </div>
               </div>
 
-              {/* Stats Summary: Mistakes & Hints */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <span>
-                  Mistakes:{' '}
-                  <strong style={{ color: state.mistakes > 0 ? 'var(--color-conflict)' : 'inherit' }}>
-                    {state.mistakes}
-                  </strong>
-                </span>
-                <span>
-                  Hints: <strong>{state.hintsUsed}</strong>
-                </span>
-              </div>
+              {/* Row 4: Subtle Variant Rule Note */}
               {variantConfig && variantConfig.metadata.id !== 'classic' && (
                 <div
                   style={{
-                    backgroundColor: 'rgba(78, 161, 255, 0.08)',
-                    border: '1px solid rgba(78, 161, 255, 0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 10px',
                     borderRadius: 'var(--radius-sm)',
-                    padding: '8px 12px',
-                    fontSize: '0.8rem',
+                    backgroundColor: 'rgba(78, 161, 255, 0.06)',
+                    border: '1px solid rgba(78, 161, 255, 0.18)',
+                    fontSize: '0.76rem',
+                    color: 'var(--text-secondary)',
                     lineHeight: 1.35,
-                    color: 'var(--accent-blue)',
-                    marginTop: '8px',
-                    width: '100%',
+                    boxSizing: 'border-box',
                   }}
                 >
-                  <strong>{variantConfig.metadata.name}:</strong> {variantConfig.metadata.description}
+                  <Info size={14} style={{ color: 'var(--accent-blue)', flexShrink: 0 }} />
+                  <span>
+                    <strong style={{ color: 'var(--accent-blue)', marginRight: '4px' }}>
+                      {variantConfig.metadata.name}:
+                    </strong>
+                    {variantConfig.metadata.description}
+                  </span>
                 </div>
               )}
             </div>
