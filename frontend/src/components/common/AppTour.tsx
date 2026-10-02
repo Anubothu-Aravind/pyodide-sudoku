@@ -130,9 +130,9 @@ export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
       stagePadding: 6,
       popoverClass: 'sudoku-tour-popover',
       progressText: '{{current}} / {{total}}',
-      nextBtnText: 'Next ->',
-      prevBtnText: '<- Back',
-      doneBtnText: 'Got it!',
+      nextBtnText: 'Next',
+      prevBtnText: 'Back',
+      doneBtnText: 'Done',
       // Inject "Skip Tour" button into each popover as it renders
       onHighlightStarted: () => {
         injectSkipButton(d)
