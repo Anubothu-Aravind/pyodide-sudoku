@@ -732,38 +732,40 @@ export const PlayView: React.FC<PlayViewProps> = ({
             <div
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
+                flexDirection: 'column',
                 gap: '8px',
                 backgroundColor: 'var(--bg-surface)',
-                padding: '12px 16px',
+                padding: '10px 12px',
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border-subtle)',
                 boxShadow: 'var(--shadow-sm)',
+                width: '100%',
+                boxSizing: 'border-box' as const,
+                overflow: 'hidden',
               }}
             >
-              {/* Quit to Home & Difficulty Selector */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* Row 1: Home + Difficulty + Variant + Info */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', minWidth: 0 }}>
                 {onGoHome && (
                   <button
                     onClick={onGoHome}
                     title="Quit to Home (Campaign Levels)"
                     style={{
-                      padding: '6px 12px',
+                      padding: '5px 10px',
                       borderRadius: 'var(--radius-sm)',
                       backgroundColor: 'var(--bg-base)',
                       border: '1px solid var(--border-subtle)',
                       color: 'var(--text-primary)',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '6px',
-                      fontSize: '0.85rem',
+                      gap: '5px',
+                      fontSize: '0.82rem',
                       fontWeight: 600,
                       cursor: 'pointer',
+                      flexShrink: 0,
                     }}
                   >
-                    <Home size={16} />
+                    <Home size={14} />
                     <span>Home</span>
                   </button>
                 )}
@@ -778,13 +780,15 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     loadNewGame(d, newSeed, variantId)
                   }}
                   style={{
-                    padding: '6px 10px',
+                    padding: '5px 6px',
                     borderRadius: 'var(--radius-sm)',
                     border: '1px solid var(--border-subtle)',
                     backgroundColor: 'var(--bg-base)',
                     color: 'var(--text-primary)',
                     fontWeight: 600,
-                    fontSize: '0.85rem',
+                    fontSize: '0.82rem',
+                    flex: '1 1 auto',
+                    minWidth: 0,
                   }}
                 >
                   <option value="beginner">Beginner</option>
@@ -796,14 +800,13 @@ export const PlayView: React.FC<PlayViewProps> = ({
                 </select>
 
                 {/* Variant selector with Info Popover */}
-                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flex: '1 1 auto', minWidth: 0 }}>
                   <select
                     value={variantId}
                     onChange={(e) => {
                       const v = e.target.value as VariantId
                       setVariantId(v)
                       setShowVariantInfo(false)
-                      // Exit solver mode when changing variant to avoid stuck spinner
                       setSubMode('play')
                       setTraceResult(null)
                       setIsSolverTracing(false)
@@ -816,14 +819,16 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     }}
                     title="Sudoku variant"
                     style={{
-                      padding: '6px 10px',
+                      padding: '5px 6px',
                       borderRadius: 'var(--radius-sm)',
                       border: `1px solid ${variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
                       backgroundColor: variantId !== 'classic' ? 'rgba(78,161,255,0.10)' : 'var(--bg-base)',
                       color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-primary)',
                       fontWeight: 600,
-                      fontSize: '0.85rem',
-                      maxWidth: '145px',
+                      fontSize: '0.82rem',
+                      flex: 1,
+                      minWidth: 0,
+                      maxWidth: '120px',
                     }}
                   >
                     <option value="classic">Classic</option>
@@ -842,18 +847,19 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     title="Variant rules & marked cells"
                     className="ui-btn ui-btn-outline"
                     style={{
-                      marginLeft: '4px',
-                      padding: '6px 7px',
-                      minHeight: '34px',
+                      marginLeft: '3px',
+                      padding: '5px 6px',
+                      minHeight: '32px',
                       borderRadius: 'var(--radius-sm)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-secondary)',
                       borderColor: showVariantInfo ? 'var(--accent-blue)' : undefined,
+                      flexShrink: 0,
                     }}
                   >
-                    <Info size={16} />
+                    <Info size={15} />
                   </button>
 
                   {showVariantInfo && (
@@ -863,7 +869,10 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     />
                   )}
                 </div>
+              </div>
 
+              {/* Row 2: Refresh + Blank */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -874,16 +883,17 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   title="Generate new random puzzle"
                   aria-label="Generate new random puzzle"
                   style={{
-                    padding: '6px',
+                    padding: '5px',
                     borderRadius: 'var(--radius-sm)',
                     color: 'var(--text-secondary)',
-                    minHeight: '36px',
+                    minHeight: '32px',
                     display: 'flex',
                     alignItems: 'center',
                     cursor: 'pointer',
+                    flexShrink: 0,
                   }}
                 >
-                  <RefreshCw size={18} />
+                  <RefreshCw size={16} />
                 </button>
 
                 <button
@@ -894,24 +904,25 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     setActiveSeed(newSeed)
                     loadNewGame('blank', newSeed, variantId)
                   }}
-                  title="Clear to blank grid (empty canvas for custom numbers)"
+                  title="Clear to blank grid"
                   aria-label="Blank Grid"
                   style={{
-                    padding: '6px 10px',
+                    padding: '5px 8px',
                     borderRadius: 'var(--radius-sm)',
                     border: `1px solid ${difficulty === 'blank' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
                     backgroundColor: difficulty === 'blank' ? 'rgba(78,161,255,0.12)' : 'var(--bg-base)',
                     color: difficulty === 'blank' ? 'var(--accent-blue)' : 'var(--text-secondary)',
                     fontWeight: 600,
-                    fontSize: '0.82rem',
-                    minHeight: '36px',
+                    fontSize: '0.8rem',
+                    minHeight: '32px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '5px',
+                    gap: '4px',
                     cursor: 'pointer',
+                    flexShrink: 0,
                   }}
                 >
-                  <FileText size={15} />
+                  <FileText size={14} />
                   <span>Blank</span>
                 </button>
               </div>

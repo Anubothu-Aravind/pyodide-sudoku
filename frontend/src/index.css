@@ -318,6 +318,7 @@ body {
 
 .ui-segmented-item {
   flex: 1;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -325,8 +326,8 @@ body {
   padding: 6px 4px;
   min-height: 36px;
   font-family: var(--font-display);
-  font-size: clamp(0.68rem, 2vw, 0.78rem);
-  letter-spacing: 0.02em;
+  font-size: clamp(0.62rem, 2vw, 0.78rem);
+  letter-spacing: 0.01em;
   text-transform: uppercase;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
@@ -335,6 +336,8 @@ body {
   transition: all 0.15s ease-in-out;
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ui-segmented-item.active {
@@ -504,6 +507,7 @@ button:focus-visible {
   max-width: 1300px;
   margin: 0 auto;
   padding: 8px 12px 32px;
+  overflow-x: hidden;
 }
 
 @media (min-width: 640px) {
@@ -517,14 +521,19 @@ button:focus-visible {
   flex-direction: column;
   gap: 16px;
   width: 100%;
+  max-width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* Mobile & Tablet (<1000px): board centered and capped at ~560px */
 @media (max-width: 999px) {
   .game-layout-grid {
-    max-width: 560px;
-    gap: 14px;
+    max-width: 600px;
+    gap: 12px;
+    box-sizing: border-box;
+    overflow: hidden;
   }
   .game-side-panel {
     display: contents;
@@ -532,30 +541,45 @@ button:focus-visible {
   .panel-header-section {
     order: 1;
     width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
   }
   .panel-tabs-section {
     order: 2;
     width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
   }
-  .panel-alerts-section {
+  /* Board comes right after the tabs on mobile so solver board is visible */
+  .game-board-section {
     order: 3;
     width: 100%;
-  }
-  .panel-playback-section {
-    order: 4;
-    width: 100%;
-  }
-  .game-board-section {
-    order: 5;
-    width: 100%;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 12px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .panel-alerts-section {
+    order: 4;
+    width: 100%;
+    min-width: 0;
+  }
+  .panel-playback-section {
+    order: 5;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
   }
   .panel-footer-section {
     order: 6;
     width: 100%;
+    min-width: 0;
   }
 }
 
@@ -875,23 +899,32 @@ button:focus-visible {
 }
 
 /* ============================================================
-   Driver.js Tour Popover – match app dark theme
+   Driver.js Tour Popover – follows app light/dark theme via CSS vars
    ============================================================ */
 .driver-popover.sudoku-tour-popover {
-  background-color: #10161F;
-  border: 2px solid #4EA1FF;
+  background-color: var(--bg-surface);
+  border: 2px solid var(--accent-blue);
   border-radius: 10px;
-  color: #F4F7FB;
-  box-shadow: 0 4px 32px rgba(78, 161, 255, 0.25);
+  color: var(--text-primary);
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.3);
   font-family: 'Russo One', sans-serif;
   max-width: 340px;
+  min-width: 280px;
+}
+
+/* Arrow inherits popover background */
+.driver-popover.sudoku-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow,
+.driver-popover.sudoku-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow,
+.driver-popover.sudoku-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow,
+.driver-popover.sudoku-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-color: var(--bg-surface) transparent transparent transparent;
 }
 
 .driver-popover.sudoku-tour-popover .driver-popover-title {
   font-family: 'Russo One', sans-serif;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: #4EA1FF;
+  color: var(--accent-blue);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   margin-bottom: 6px;
@@ -899,56 +932,69 @@ button:focus-visible {
 
 .driver-popover.sudoku-tour-popover .driver-popover-description {
   font-size: 0.84rem;
-  color: #b8c8e0;
+  color: var(--text-secondary);
   line-height: 1.55;
 }
 
 .driver-popover.sudoku-tour-popover .driver-popover-progress-text {
-  font-size: 0.72rem;
-  color: #4EA1FF;
-  font-family: 'Press Start 2P', monospace;
+  font-size: 0.7rem;
+  color: var(--accent-blue);
+  font-family: 'Russo One', sans-serif;
+  align-self: center;
 }
 
+/* Footer: flex row so Skip Tour floats to the right */
 .driver-popover.sudoku-tour-popover .driver-popover-footer {
   margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.driver-popover.sudoku-tour-popover .driver-popover-footer-left-btns {
+  display: flex;
+  gap: 6px;
 }
 
 .driver-popover.sudoku-tour-popover button.driver-popover-next-btn,
 .driver-popover.sudoku-tour-popover button.driver-popover-done-btn {
-  background-color: #4EA1FF;
-  color: #0B0F14;
+  background-color: var(--accent-blue);
+  color: var(--text-inverse);
   border: none;
   border-radius: 6px;
   font-weight: 700;
   font-size: 0.8rem;
   padding: 7px 16px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: opacity 0.15s;
+  font-family: 'Russo One', sans-serif;
 }
 
 .driver-popover.sudoku-tour-popover button.driver-popover-next-btn:hover,
 .driver-popover.sudoku-tour-popover button.driver-popover-done-btn:hover {
-  background-color: #80bfff;
+  opacity: 0.85;
 }
 
 .driver-popover.sudoku-tour-popover button.driver-popover-prev-btn {
   background-color: transparent;
-  color: #4EA1FF;
-  border: 1px solid #4EA1FF;
+  color: var(--accent-blue);
+  border: 1px solid var(--accent-blue);
   border-radius: 6px;
   font-size: 0.8rem;
   padding: 7px 14px;
   cursor: pointer;
   transition: background 0.15s;
+  font-family: 'Russo One', sans-serif;
 }
 
 .driver-popover.sudoku-tour-popover button.driver-popover-prev-btn:hover {
-  background-color: rgba(78, 161, 255, 0.12);
+  background-color: var(--color-player-bg);
 }
 
 .driver-popover.sudoku-tour-popover button.driver-popover-close-btn {
-  color: #4EA1FF;
-  font-size: 1.1rem;
+  color: var(--text-muted);
+  font-size: 1rem;
   background: none;
   border: none;
   cursor: pointer;
@@ -958,17 +1004,18 @@ button:focus-visible {
 
 .driver-popover.sudoku-tour-popover button.driver-popover-close-btn:hover {
   opacity: 1;
+  color: var(--accent-blue);
 }
 
 .driver-overlay {
-  background: rgba(11, 15, 20, 0.72) !important;
+  background: var(--bg-overlay) !important;
 }
 
-/* Skip Tour button injected into popover footer */
+/* Skip Tour button – right-aligned inside footer via margin-left: auto */
 .tour-skip-link {
   background: none;
   border: none;
-  color: var(--text-muted, #6a7a94);
+  color: var(--text-muted);
   font-size: 0.74rem;
   font-family: 'Russo One', sans-serif;
   cursor: pointer;
@@ -978,10 +1025,13 @@ button:focus-visible {
   text-underline-offset: 2px;
   transition: color 0.15s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tour-skip-link:hover {
-  color: #4EA1FF;
+  color: var(--accent-blue);
 }
+
+
 
 

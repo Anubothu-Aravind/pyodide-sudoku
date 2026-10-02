@@ -35,12 +35,16 @@ export function resetTour(): void {
   } catch {}
 }
 
-/** Injects a "Skip Tour" link into the driver.js popover footer. */
+/** Injects a "Skip Tour" link into the driver.js popover footer.
+ *  Called on every step (onHighlighted) — re-inserts because the popover
+ *  DOM is re-created on each step transition. */
 function injectSkipButton(d: Driver) {
-  // Small tick so the popover is already in the DOM
-  setTimeout(() => {
+  // requestAnimationFrame fires after the browser has painted the popover DOM
+  requestAnimationFrame(() => {
     const footer = document.querySelector('.driver-popover-footer')
-    if (!footer || footer.querySelector('.tour-skip-link')) return
+    if (!footer) return
+    // Remove any stale button from previous step
+    footer.querySelector('.tour-skip-link')?.remove()
 
     const skip = document.createElement('button')
     skip.textContent = 'Skip Tour'
@@ -52,7 +56,7 @@ function injectSkipButton(d: Driver) {
       d.destroy()
     }
     footer.appendChild(skip)
-  }, 10)
+  })
 }
 
 const STEPS = [
@@ -133,8 +137,8 @@ export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
       nextBtnText: 'Next',
       prevBtnText: 'Back',
       doneBtnText: 'Done',
-      // Inject "Skip Tour" button into each popover as it renders
-      onHighlightStarted: () => {
+      // onHighlighted fires AFTER the popover DOM is inserted — reliable timing
+      onHighlighted: () => {
         injectSkipButton(d)
       },
       // onDestroyStarted intercepts close (X / Escape / overlay click)
