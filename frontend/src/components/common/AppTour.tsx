@@ -35,29 +35,7 @@ export function resetTour(): void {
   } catch {}
 }
 
-/** Injects a "Skip Tour" link at the TOP of the driver.js popover header.
- *  Called on every step (onHighlighted) — re-inserts because the popover
- *  DOM is re-created on each step transition. */
-function injectSkipButton(d: Driver) {
-  requestAnimationFrame(() => {
-    const popover = document.querySelector('.driver-popover.sudoku-tour-popover')
-    if (!popover) return
-    // Remove any stale button from previous step
-    popover.querySelector('.tour-skip-link')?.remove()
 
-    const skip = document.createElement('button')
-    skip.textContent = 'Skip Tour'
-    skip.className = 'tour-skip-link'
-    skip.type = 'button'
-    skip.setAttribute('aria-label', 'Skip the guided tour')
-    skip.onclick = () => {
-      markTourSeen()
-      d.destroy()
-    }
-    // Insert as first child of popover so it sits above everything
-    popover.insertBefore(skip, popover.firstChild)
-  })
-}
 
 const STEPS = [
   {
@@ -135,14 +113,63 @@ export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
       popoverClass: 'sudoku-tour-popover',
       progressText: '{{current}} / {{total}}',
       nextBtnText: 'Next',
-      prevBtnText: 'Back',
+      prevBtnText: 'Prev',
       doneBtnText: 'Done',
-      // onHighlighted fires AFTER the popover DOM is inserted — reliable timing
-      onHighlighted: () => {
-        injectSkipButton(d)
+      onPopoverRender: (popoverDOM) => {
+        const { wrapper, title, description, footer, closeButton } = popoverDOM
+
+        // 1. Skip Tour button (clean text button at top-right next to close, NO horizontal line!)
+        if (!wrapper.querySelector('.tour-skip-btn')) {
+          const skipBtn = document.createElement('button')
+          skipBtn.type = 'button'
+          skipBtn.className = 'tour-skip-btn'
+          skipBtn.textContent = 'Skip Tour'
+          skipBtn.setAttribute('aria-label', 'Skip the guided tour')
+          skipBtn.onclick = (e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            markTourSeen()
+            d.destroy()
+          }
+          wrapper.insertBefore(skipBtn, closeButton)
+        }
+
+        // 2. Avatar + Text layout (like reference image 2)
+        if (!wrapper.querySelector('.tour-card-body')) {
+          const cardBody = document.createElement('div')
+          cardBody.className = 'tour-card-body'
+
+          const avatar = document.createElement('div')
+          avatar.className = 'tour-avatar'
+
+          const img = document.createElement('img')
+          const baseUrl = import.meta.env.BASE_URL || '/'
+          img.src = `${baseUrl.endsWith('/') ? baseUrl : baseUrl + '/'}favicon.svg`
+          img.alt = 'Sudoku Logo'
+          img.width = 44
+          img.height = 44
+          img.onerror = () => {
+            avatar.innerHTML = `<span class="tour-avatar-fallback">S</span>`
+          }
+          avatar.appendChild(img)
+
+          const textContainer = document.createElement('div')
+          textContainer.className = 'tour-text-container'
+
+          // Insert cardBody right before footer
+          wrapper.insertBefore(cardBody, footer)
+
+          cardBody.appendChild(avatar)
+          cardBody.appendChild(textContainer)
+          textContainer.appendChild(title)
+          textContainer.appendChild(description)
+        }
       },
-      // onDestroyStarted intercepts close (X / Escape / overlay click)
-      // but does NOT auto-close in driver.js v1 — must call destroy() manually.
+      onCloseClick: () => {
+        markTourSeen()
+        driverRef.current?.destroy()
+        driverRef.current = null
+      },
       onDestroyStarted: () => {
         markTourSeen()
         driverRef.current?.destroy()
