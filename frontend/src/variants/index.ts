@@ -26,6 +26,16 @@
 
 export type VariantId = 'classic' | 'diagonal' | 'windoku' | 'center-dot' | 'asterisk' | 'girandola' | 'disjoint'
 
+export const VARIANT_SYMBOLS: Record<VariantId, string> = {
+  classic: '',
+  diagonal: '',
+  windoku: '',
+  'center-dot': '',
+  asterisk: '',
+  girandola: '',
+  disjoint: '',
+}
+
 // ---------------------------------------------------------------------------
 // Constraint groups (game rules)
 // ---------------------------------------------------------------------------
@@ -164,18 +174,18 @@ export const VARIANTS: Record<VariantId, VariantConfig> = {
       id: 'diagonal',
       name: 'Diagonal Sudoku',
       description:
-        'Classic rules plus both main diagonals (↘ and ↙) must also contain each of 1–9 exactly once.',
+        'Classic rules plus both main diagonals must also contain each of 1–9 exactly once.',
       difficultyModifier: 'slightly-harder',
       available: true,
     },
     constraints: {
       solver: [
-        { label: 'Main diagonal (↘)', cells: MAIN_DIAGONAL },
-        { label: 'Anti-diagonal (↙)', cells: ANTI_DIAGONAL },
+        { label: 'Main diagonal', cells: MAIN_DIAGONAL },
+        { label: 'Anti-diagonal', cells: ANTI_DIAGONAL },
       ],
       validation: [
-        { label: 'Main diagonal (↘)', cells: MAIN_DIAGONAL },
-        { label: 'Anti-diagonal (↙)', cells: ANTI_DIAGONAL },
+        { label: 'Main diagonal', cells: MAIN_DIAGONAL },
+        { label: 'Anti-diagonal', cells: ANTI_DIAGONAL },
       ],
     },
     decorations: [

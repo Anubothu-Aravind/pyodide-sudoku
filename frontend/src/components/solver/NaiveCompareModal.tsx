@@ -73,7 +73,7 @@ export const NaiveCompareModal: React.FC<NaiveCompareModalProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 id="compare-modal-title" style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-            Compare: Propagation vs Naive Search
+            Compare Algorithms: CSP vs GHB
           </h2>
           <button
             onClick={onClose}
@@ -91,7 +91,7 @@ export const NaiveCompareModal: React.FC<NaiveCompareModalProps> = ({
         {isLoading ? (
           <div style={{ textAlign: 'center', padding: '32px 0' }}>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-              Running naive cell-order backtracking in Web Worker...
+              Running Greedy Heuristic + Backtracking (GHB) in Web Worker...
             </p>
           </div>
         ) : naiveStats ? (
@@ -109,8 +109,8 @@ export const NaiveCompareModal: React.FC<NaiveCompareModalProps> = ({
               }}
             >
               <strong>Summary: </strong>
-              Naive search visited <strong>{naiveNodes}</strong> nodes
-              {naiveGaveUp ? ' (capped at node limit)' : ''}; with propagation and MRV, only{' '}
+              Greedy Heuristic + Backtracking (GHB) visited <strong>{naiveNodes}</strong> nodes
+              {naiveGaveUp ? ' (capped at node limit)' : ''}; Constraint Satisfaction (CSP) with MRV visited only{' '}
               <strong>{propNodes}</strong>
               {ratio ? ` (${ratio}× reduction)` : ''}.
             </div>
@@ -120,8 +120,8 @@ export const NaiveCompareModal: React.FC<NaiveCompareModalProps> = ({
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left' }}>
                   <th style={{ padding: '8px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Metric</th>
-                  <th style={{ padding: '8px', color: 'var(--color-logic)', fontSize: '0.85rem' }}>With Propagation & MRV</th>
-                  <th style={{ padding: '8px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Naive Backtracking</th>
+                  <th style={{ padding: '8px', color: 'var(--color-logic)', fontSize: '0.85rem' }}>Constraint Satisfaction (CSP)</th>
+                  <th style={{ padding: '8px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Greedy Heuristic + Backtracking (GHB)</th>
                 </tr>
               </thead>
               <tbody>

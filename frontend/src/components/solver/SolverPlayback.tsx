@@ -41,8 +41,8 @@ export const SolverPlayback: React.FC<SolverPlaybackProps> = ({
   explanationDetail,
   explanationCoordinate,
   solverType = 'smart',
-  tries,
-  backtracks,
+  tries: _tries,
+  backtracks: _backtracks,
   onTogglePlay,
   onStepBackward,
   onStepForward,
@@ -99,7 +99,7 @@ export const SolverPlayback: React.FC<SolverPlaybackProps> = ({
               color: 'var(--text-high)',
             }}
           >
-            SOLVER PLAYBACK
+            {solverType === 'naive' ? 'GHB ALGORITHM' : 'CSP ALGORITHM'}
           </span>
           <span
             style={{
@@ -228,39 +228,7 @@ export const SolverPlayback: React.FC<SolverPlaybackProps> = ({
           </button>
         </div>
 
-        {/* Tries and Backtracks counters for Naive solver */}
-        {solverType === 'naive' && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '24px',
-              width: '100%',
-              padding: '6px 12px',
-              backgroundColor: 'var(--bg-base)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-arcade)', color: 'var(--text-secondary)' }}>
-                TRIES:
-              </span>
-              <span style={{ fontSize: '0.9rem', fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--accent-blue)' }}>
-                {tries ?? 0}
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-arcade)', color: 'var(--text-secondary)' }}>
-                BACKTRACKS:
-              </span>
-              <span style={{ fontSize: '0.9rem', fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--danger)' }}>
-                {backtracks ?? 0}
-              </span>
-            </div>
-          </div>
-        )}
+
 
         {/* Speed Row */}
         <div

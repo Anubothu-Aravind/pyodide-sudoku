@@ -21,7 +21,6 @@ import {
   Pause,
   Lightbulb,
   CheckCircle,
-  Eye,
   RotateCcw,
   RotateCw,
   Eraser,
@@ -293,14 +292,14 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
 
   // Timer interval
   useEffect(() => {
-    if (viewMode !== 'play' || state.isPaused || state.isSolved || isLoading) return
+    if (viewMode !== 'play' || state.isPaused || state.isSolved || isLoading || levelSubMode === 'solver') return
 
     const timer = setInterval(() => {
       dispatch({ type: 'TICK_TIMER', deltaMs: 1000 })
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [viewMode, state.isPaused, state.isSolved, isLoading])
+  }, [viewMode, state.isPaused, state.isSolved, isLoading, levelSubMode])
 
   // Autosave game
   useEffect(() => {
@@ -660,14 +659,14 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
         return { title: 'BACKTRACK', coordinate: coord, detail: 'Unwinding hypothesis search tree.' }
       case 'place':
         return {
-          title: 'NAIVE PLACEMENT',
+          title: 'GHB PLACEMENT',
           coordinate: `R${r}C${c} = ${event.digit}`,
           detail: `Trying digit ${event.digit} in cell R${r}C${c}.`,
         }
       case 'conflict': {
         const peerDesc = event.with && event.with.length > 0 ? ` (conflicts with ${event.with.length} peer cell${event.with.length > 1 ? 's' : ''})` : ''
         return {
-          title: 'NAIVE CONFLICT',
+          title: 'CONFLICT DETECTED',
           coordinate: `R${r}C${c} ⤬ ${event.digit}`,
           detail: `Digit ${event.digit} conflicts with existing digit in its row, column, or box${peerDesc}.`,
         }
@@ -993,13 +992,18 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
 
               {/* Right: Timer & Pause / Restart */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ textAlign: 'right' }}>
-                  <span
-                    className="tabular-nums"
-                    style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', lineHeight: 1.1 }}
-                  >
-                    {formatTimer(state.elapsedMs)}
-                  </span>
+                <div style={{ textAlign: 'right', opacity: levelSubMode === 'solver' ? 0.7 : 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'flex-end' }}>
+                    {levelSubMode === 'solver' && (
+                      <span className="game-bar-solver-badge" title="Timer paused during solver">Solver</span>
+                    )}
+                    <span
+                      className="tabular-nums"
+                      style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', lineHeight: 1.1 }}
+                    >
+                      {formatTimer(state.elapsedMs)}
+                    </span>
+                  </div>
                   {currentRecord && (
                     <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', lineHeight: 1 }}>
                       Par {formatTimer(currentRecord.par_time_seconds * 1000)}
@@ -1061,26 +1065,33 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
                   aria-selected={levelSubMode === 'play'}
                   className={`ui-segmented-item ${levelSubMode === 'play' ? 'active' : ''}`}
                   onClick={handleSwitchToPlay}
+                  title="Play Level"
+                  aria-label="Play Level"
                 >
-                  <span>Play Level</span>
+                  <span className="tab-title-primary">PLAY</span>
+                  <span className="tab-title-secondary">Manual Level</span>
                 </button>
                 <button
                   role="tab"
                   aria-selected={levelSubMode === 'solver' && levelSolverType === 'smart'}
                   className={`ui-segmented-item ${levelSubMode === 'solver' && levelSolverType === 'smart' ? 'active' : ''}`}
                   onClick={() => handleOpenSolver('smart')}
+                  title="Constraint Satisfaction (CSP) Solver"
+                  aria-label="Constraint Satisfaction (CSP) Solver"
                 >
-                  <Eye size={14} />
-                  <span>Watch Solver</span>
+                  <span className="tab-title-primary">CSP</span>
+                  <span className="tab-title-secondary">Constraint Satisfaction</span>
                 </button>
                 <button
                   role="tab"
                   aria-selected={levelSubMode === 'solver' && levelSolverType === 'naive'}
                   className={`ui-segmented-item ${levelSubMode === 'solver' && levelSolverType === 'naive' ? 'active' : ''}`}
                   onClick={() => handleOpenSolver('naive')}
+                  title="Greedy Heuristic + Backtracking Solver"
+                  aria-label="Greedy Heuristic + Backtracking Solver"
                 >
-                  <Eye size={14} />
-                  <span>Naive (red)</span>
+                  <span className="tab-title-primary">GHB</span>
+                  <span className="tab-title-secondary">Greedy + Backtracking</span>
                 </button>
               </div>
 
@@ -1286,7 +1297,7 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
               <button
                 onClick={handleSubmitLevelInSolver}
                 disabled={!isSolverReadyToSubmit}
-                title={!isSolverReadyToSubmit ? 'Watch solver finish to submit' : 'Submit Level'}
+                title={!isSolverReadyToSubmit ? 'Algorithm must reach solution to submit' : 'Submit Level'}
                 aria-disabled={!isSolverReadyToSubmit}
                 className="ui-btn ui-btn-success"
                 style={{
@@ -1314,7 +1325,7 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
                     fontWeight: 500,
                   }}
                 >
-                  Watch solver finish to submit
+                  Algorithm must reach solution to submit
                 </span>
               )}
             </div>

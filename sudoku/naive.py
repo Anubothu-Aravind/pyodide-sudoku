@@ -127,8 +127,22 @@ def naive_backtrack_trace(
     time_elapsed = time.perf_counter() - start_time
 
     if hit_step_limit:
+        events = events[: max_events - 1]
+        events.append({
+            "type": "done",
+            "event_type": "done",
+            "explanation": f"Naive search reached step limit ({max_events} events) with {tries} tries and {backtracks} backtracks.",
+            "stats": {
+                "tries": tries,
+                "backtracks": backtracks,
+                "nodes_expanded": tries,
+                "max_depth": num_empty,
+                "time_elapsed_seconds": round(time_elapsed, 5),
+            },
+            "solution_count": 0,
+        })
         return {
-            "ok": False,
+            "ok": True,
             "success": False,
             "error": f"Step limit of {max_events} reached before solving.",
             "mode": "naive",
@@ -142,7 +156,7 @@ def naive_backtrack_trace(
                 "time_elapsed_seconds": round(time_elapsed, 5),
             },
             "truncated": True,
-            "events": events[:max_events],
+            "events": events,
         }
 
     success = ptr == num_empty

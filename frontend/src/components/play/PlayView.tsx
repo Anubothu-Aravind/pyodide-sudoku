@@ -15,17 +15,16 @@ import type { Difficulty, HintResult, TraceSolveResult } from '../../types'
 import { ReplayEngine, type ReplayFrame } from '../../solver/replayEngine'
 import { NaiveCompareModal } from '../solver/NaiveCompareModal'
 import { SolverPlayback } from '../solver/SolverPlayback'
-import { getVariant, VARIANTS, type VariantId } from '../../variants'
-import { VariantInfoPopover } from './VariantInfoPopover'
+import { getVariant, VARIANTS, type VariantId, VARIANT_SYMBOLS } from '../../variants'
 import type { ValidatedUserSettings } from '../../storage/validation'
+import { NewGamePanel } from './NewGamePanel'
+import { GameBarStatChips } from './GameBarStatChips'
 import {
   Play,
   Pause,
   Lightbulb,
   CheckCircle,
   Share2,
-  RefreshCw,
-  Eye,
   Award,
   Home,
   BarChart2,
@@ -33,8 +32,7 @@ import {
   RotateCw,
   Eraser,
   Info,
-  FileText,
-  X,
+  ChevronDown,
 } from 'lucide-react'
 
 export type PlayDifficulty = Difficulty | 'blank'
@@ -65,7 +63,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
   const [isCheckNotice, setIsCheckNotice] = useState<string | null>(null)
   const [shareNotice, setShareNotice] = useState<string | null>(null)
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false)
-  const [showVariantInfo, setShowVariantInfo] = useState<boolean>(false)
+  const [isNewGameOpen, setIsNewGameOpen] = useState<boolean>(false)
   const cancelBtnRef = useRef<HTMLButtonElement | null>(null)
 
   const showRemainingCounts = userSettings?.showRemainingCounts ?? false
@@ -86,6 +84,14 @@ export const PlayView: React.FC<PlayViewProps> = ({
     return 'classic'
   })
   const variantConfig = useMemo(() => getVariant(variantId), [variantId])
+
+  const difficultyLabel =
+    difficulty === 'blank'
+      ? 'Blank'
+      : difficulty.charAt(0).toUpperCase() + difficulty.slice(1)
+  const variantCleanName = variantConfig.metadata.name.replace(/\s+Sudoku$/i, '')
+  const variantSymbol = VARIANT_SYMBOLS[variantId] || ''
+  const setupLabel = `${difficultyLabel} • ${variantCleanName}${variantSymbol ? ' ' + variantSymbol : ''}`
 
   // Inject variant constraint groups into the reducer whenever variant changes
   useEffect(() => {
@@ -132,6 +138,9 @@ export const PlayView: React.FC<PlayViewProps> = ({
     ) => {
       setIsSolverTracing(true)
       setIsSolverPlaying(false)
+      lastSolvedGivensRef.current = puzzleStr
+      lastSolvedTypeRef.current = type
+
       try {
         let res: TraceSolveResult
         if (activeVariant !== 'classic') {
@@ -142,11 +151,9 @@ export const PlayView: React.FC<PlayViewProps> = ({
               ? await sudokuWorker.solveNaiveWithTrace(puzzleStr, 20000)
               : await sudokuWorker.solveWithTrace(puzzleStr, 'propagate', 50000)
         }
-        if (res.ok && res.events) {
+        if (res.events && res.events.length > 0) {
           setTraceResult(res)
           setStepIndex(0)
-          lastSolvedGivensRef.current = puzzleStr
-          lastSolvedTypeRef.current = type
         } else {
           setTraceResult(res)
         }
@@ -181,6 +188,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
     if (puzzleToSolve) {
       if (!traceResult || lastSolvedGivensRef.current !== puzzleToSolve || lastSolvedTypeRef.current !== type) {
+        setTraceResult(null)
+        setStepIndex(0)
         runSolverTrace(puzzleToSolve, type, variantIdRef.current)
       }
     }
@@ -254,6 +263,36 @@ export const PlayView: React.FC<PlayViewProps> = ({
     }
   }, [state.givens, state.solution, runSolverTrace])
 
+  // Check if player has made any moves or notes on the current board
+  const hasActiveMoves = useMemo(() => {
+    return (
+      state.history.length > 0 ||
+      state.cells.some((v, idx) => v !== 0 && state.givens[idx] === '.') ||
+      state.notes.some((s) => s && s.length > 0)
+    )
+  }, [state.history.length, state.cells, state.givens, state.notes])
+
+  // Handle new puzzle generation requested from NewGamePanel
+  const handleGenerateNewGame = useCallback(
+    (targetDiff: PlayDifficulty, targetVariant: VariantId) => {
+      setDifficulty(targetDiff)
+      setVariantId(targetVariant)
+      setSubMode('play')
+      setTraceResult(null)
+      setIsSolverTracing(false)
+
+      try {
+        localStorage.setItem('sudoku_free_difficulty', targetDiff)
+        localStorage.setItem('sudoku_free_variant', targetVariant)
+      } catch {}
+
+      const newSeed = `seed_${Math.random().toString(36).slice(2)}`
+      setActiveSeed(newSeed)
+      loadNewGame(targetDiff, newSeed, targetVariant)
+    },
+    [loadNewGame]
+  )
+
   // Ensure solver traces when switched to solver or when givens update
   useEffect(() => {
     const isBlankGrid =
@@ -321,16 +360,16 @@ export const PlayView: React.FC<PlayViewProps> = ({
     init()
   }, [])
 
-  // Timer interval (ticks every 1000ms if not paused and not solved)
+  // Timer interval (ticks every 1000ms if not paused and not solved and not in solver mode)
   useEffect(() => {
-    if (state.isPaused || state.isSolved || isLoading) return
+    if (state.isPaused || state.isSolved || isLoading || subMode === 'solver') return
 
     const timer = setInterval(() => {
       dispatch({ type: 'TICK_TIMER', deltaMs: 1000 })
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [state.isPaused, state.isSolved, isLoading])
+  }, [state.isPaused, state.isSolved, isLoading, subMode])
 
   // Pause timer when tab is hidden (Page Visibility API)
   useEffect(() => {
@@ -552,7 +591,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
         }
       case 'place':
         return {
-          title: 'NAIVE PLACEMENT',
+          title: 'GHB PLACEMENT',
           coordinate: `R${r}C${c} = ${event.digit}`,
           detail: `No conflict found. Placed ${event.digit} at R${r}C${c} and advancing to next empty cell.`,
         }
@@ -739,325 +778,124 @@ export const PlayView: React.FC<PlayViewProps> = ({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '8px',
-                backgroundColor: 'var(--bg-surface)',
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                boxShadow: 'var(--shadow-sm)',
                 width: '100%',
-                boxSizing: 'border-box' as const,
-                overflow: 'visible',
+                boxSizing: 'border-box',
                 position: 'relative',
               }}
             >
-              {/* Row 1: Home + Difficulty + Refresh */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%' }}>
-                {onGoHome && (
-                  <button
-                    onClick={onGoHome}
-                    title="Quit to Home (Campaign Levels)"
-                    className="ui-btn ui-btn-outline"
-                    style={{
-                      height: '34px',
-                      padding: '0 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Home size={14} />
-                    <span>Home</span>
-                  </button>
-                )}
+              {/* Free Play Slim Game Bar */}
+              <div className="free-play-game-bar" role="region" aria-label="Game status and controls">
+                <div className="game-bar-main-row">
+                  {/* Left: Home + Setup Chip */}
+                  <div className="game-bar-left-group">
+                    {onGoHome && (
+                      <button
+                        type="button"
+                        onClick={onGoHome}
+                        title="Home (Campaign Levels)"
+                        aria-label="Home (Campaign Levels)"
+                        className="icon-touch-btn"
+                      >
+                        <Home size={18} />
+                      </button>
+                    )}
 
-                <select
-                  value={difficulty}
-                  onChange={(e) => {
-                    const d = e.target.value as PlayDifficulty
-                    setDifficulty(d)
-                    try {
-                      localStorage.setItem('sudoku_free_difficulty', d)
-                    } catch {}
-                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
-                    setActiveSeed(newSeed)
-                    loadNewGame(d, newSeed, variantId)
-                  }}
-                  title="Difficulty"
-                  style={{
-                    height: '34px',
-                    padding: '0 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-subtle)',
-                    backgroundColor: 'var(--bg-base)',
-                    color: 'var(--text-primary)',
-                    fontWeight: 600,
-                    fontSize: '0.82rem',
-                    flex: 1,
-                    minWidth: 0,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="beginner">Beginner</option>
-                  <option value="easy">Easy</option>
-                  <option value="medium">Medium</option>
-                  <option value="hard">Hard</option>
-                  <option value="expert">Expert</option>
-                  <option value="blank">Blank Grid</option>
-                </select>
+                    {/* Desktop/Tablet inline setup chip (>=400px) */}
+                    <button
+                      type="button"
+                      className="setup-chip-btn desktop-only-inline"
+                      onClick={() => setIsNewGameOpen((v) => !v)}
+                      aria-expanded={isNewGameOpen}
+                      title="Change difficulty or variant"
+                      aria-label={`Change difficulty or variant, currently ${setupLabel}`}
+                    >
+                      <span className="setup-chip-text">{setupLabel}</span>
+                      <ChevronDown
+                        size={14}
+                        className="setup-chip-chevron"
+                        style={{
+                          transform: isNewGameOpen ? 'rotate(180deg)' : 'none',
+                          transition: 'transform 0.2s ease',
+                        }}
+                      />
+                    </button>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetDiff = difficulty === 'blank' ? 'medium' : difficulty
-                    if (difficulty === 'blank') {
-                      setDifficulty('medium')
-                      try {
-                        localStorage.setItem('sudoku_free_difficulty', 'medium')
-                      } catch {}
-                    }
-                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
-                    setActiveSeed(newSeed)
-                    loadNewGame(targetDiff, newSeed, variantId)
-                  }}
-                  title="New puzzle"
-                  aria-label="New puzzle"
-                  className="ui-btn ui-btn-outline"
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    padding: 0,
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--text-secondary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                  }}
-                >
-                  <RefreshCw size={15} />
-                </button>
-              </div>
+                  {/* Center: Timer + Pause Button / Solver Badge */}
+                  <div className={`game-bar-timer-group ${subMode === 'solver' ? 'is-solver-frozen' : ''}`}>
+                    <span
+                      className="game-bar-timer-digits tabular-nums"
+                      aria-live="off"
+                      title={subMode === 'solver' ? 'Timer paused (Solver mode)' : 'Elapsed time'}
+                    >
+                      {formatTimer(state.elapsedMs)}
+                    </span>
+                    {subMode === 'solver' ? (
+                      <span className="game-bar-solver-badge" title="Timer paused during solver mode">
+                        Solver
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: 'SET_PAUSED', paused: !state.isPaused })}
+                        aria-label={state.isPaused ? 'Resume game' : 'Pause game'}
+                        title={state.isPaused ? 'Resume' : 'Pause'}
+                        className="icon-touch-btn"
+                      >
+                        {state.isPaused ? <Play size={15} /> : <Pause size={15} />}
+                      </button>
+                    )}
+                  </div>
 
-              {/* Row 2: Variant + Info + Blank Toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', position: 'relative' }}>
-                <select
-                  value={variantId}
-                  onChange={(e) => {
-                    const v = e.target.value as VariantId
-                    setVariantId(v)
-                    setShowVariantInfo(false)
-                    setSubMode('play')
-                    setTraceResult(null)
-                    setIsSolverTracing(false)
-                    try {
-                      localStorage.setItem('sudoku_free_variant', v)
-                    } catch {}
-                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
-                    setActiveSeed(newSeed)
-                    loadNewGame(difficulty, newSeed, v)
-                  }}
-                  title="Sudoku variant"
-                  style={{
-                    height: '34px',
-                    padding: '0 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: `1px solid ${variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
-                    backgroundColor: variantId !== 'classic' ? 'rgba(78,161,255,0.08)' : 'var(--bg-base)',
-                    color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-primary)',
-                    fontWeight: 600,
-                    fontSize: '0.82rem',
-                    flex: '1 1 auto',
-                    minWidth: 0,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="classic">Classic</option>
-                  <option value="diagonal">Diagonal</option>
-                  <option value="windoku">Windoku</option>
-                  <option value="center-dot">Center Dot</option>
-                  <option value="asterisk">Asterisk</option>
-                  <option value="girandola">Girandola</option>
-                  <option value="disjoint">Disjoint</option>
-                </select>
-
-                {/* Variant Info button & Popover */}
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowVariantInfo((v) => !v)}
-                    aria-label={`View rules for ${variantConfig.metadata.name}`}
-                    title="Variant rules & marked cells"
-                    className="ui-btn ui-btn-outline"
-                    style={{
-                      width: '34px',
-                      height: '34px',
-                      padding: 0,
-                      borderRadius: 'var(--radius-sm)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-secondary)',
-                      borderColor: showVariantInfo ? 'var(--accent-blue)' : undefined,
-                    }}
-                  >
-                    <Info size={15} />
-                  </button>
-
-                  {showVariantInfo && (
-                    <VariantInfoPopover
-                      variantId={variantId}
-                      onClose={() => setShowVariantInfo(false)}
+                  {/* Right: Stat Chips (Mistakes/Hints or Solver Metrics) + Restart Button */}
+                  <div className="game-bar-right-group">
+                    <GameBarStatChips
+                      subMode={subMode}
+                      solverType={solverType}
+                      mistakes={state.mistakes}
+                      hintsUsed={state.hintsUsed}
+                      stepIndex={stepIndex}
+                      totalSteps={traceResult?.events?.length ?? 0}
+                      tries={currentFrame?.stats?.tries ?? 0}
+                      backtracks={currentFrame?.stats?.backtracks ?? 0}
                     />
-                  )}
+
+                    <button
+                      type="button"
+                      onClick={() => setShowResetConfirm(true)}
+                      aria-label="Restart puzzle"
+                      title="Restart puzzle"
+                      className="icon-touch-btn"
+                    >
+                      <RotateCcw size={15} />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Blank Mode Toggle Button */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextDiff = difficulty === 'blank' ? 'medium' : 'blank'
-                    setDifficulty(nextDiff)
-                    try {
-                      localStorage.setItem('sudoku_free_difficulty', nextDiff)
-                    } catch {}
-                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
-                    setActiveSeed(newSeed)
-                    loadNewGame(nextDiff, newSeed, variantId)
-                  }}
-                  title={difficulty === 'blank' ? 'Exit blank mode (load Medium puzzle)' : 'Clear to blank grid'}
-                  aria-label={difficulty === 'blank' ? 'Exit Blank Grid' : 'Blank Grid'}
-                  className="ui-btn ui-btn-outline"
-                  style={{
-                    height: '34px',
-                    padding: '0 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: `1px solid ${difficulty === 'blank' ? 'var(--color-conflict, #ef4444)' : 'var(--border-subtle)'}`,
-                    backgroundColor: difficulty === 'blank' ? 'rgba(239, 68, 68, 0.10)' : 'var(--bg-base)',
-                    color: difficulty === 'blank' ? 'var(--color-conflict, #ef4444)' : 'var(--text-secondary)',
-                    fontWeight: 600,
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                  }}
-                >
-                  {difficulty === 'blank' ? <X size={14} /> : <FileText size={14} />}
-                  <span>{difficulty === 'blank' ? 'Exit Blank' : 'Blank'}</span>
-                </button>
-              </div>
-
-              {/* Row 3: Cohesive Dashboard Strip (Timer + Controls + Stats) */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '7px 10px',
-                  backgroundColor: 'var(--bg-base)',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-subtle)',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                }}
-              >
-                {/* Left: Timer + Controls */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span
-                    className="tabular-nums"
-                    style={{
-                      fontSize: '1.08rem',
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-display)',
-                      color: 'var(--text-primary)',
-                      letterSpacing: '0.04em',
-                      minWidth: '52px',
-                    }}
-                  >
-                    {formatTimer(state.elapsedMs)}
-                  </span>
-                  <button
-                    onClick={() => dispatch({ type: 'SET_PAUSED', paused: !state.isPaused })}
-                    aria-label={state.isPaused ? 'Resume game' : 'Pause game'}
-                    title={state.isPaused ? 'Resume' : 'Pause'}
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-surface)',
-                      color: 'var(--text-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
-                  >
-                    {state.isPaused ? <Play size={13} /> : <Pause size={13} />}
-                  </button>
+                {/* Mobile wrapped setup chip (<400px) */}
+                <div className="mobile-only-chip-row">
                   <button
                     type="button"
-                    onClick={() => setShowResetConfirm(true)}
-                    aria-label="Reset puzzle"
-                    title="Reset puzzle"
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-subtle)',
-                      backgroundColor: 'var(--bg-surface)',
-                      color: 'var(--text-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
+                    className="setup-chip-btn setup-chip-full"
+                    onClick={() => setIsNewGameOpen((v) => !v)}
+                    aria-expanded={isNewGameOpen}
+                    title="Change difficulty or variant"
+                    aria-label={`Change difficulty or variant, currently ${setupLabel}`}
                   >
-                    <RotateCcw size={13} />
+                    <span className="setup-chip-text">{setupLabel}</span>
+                    <ChevronDown
+                      size={14}
+                      className="setup-chip-chevron"
+                      style={{
+                        transform: isNewGameOpen ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.2s ease',
+                      }}
+                    />
                   </button>
-                </div>
-
-                {/* Right: Mistakes & Hints Pill Badges */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span
-                    style={{
-                      fontSize: '0.73rem',
-                      fontWeight: 600,
-                      color: state.mistakes > 0 ? 'var(--color-conflict, #ef4444)' : 'var(--text-muted)',
-                      backgroundColor: state.mistakes > 0 ? 'rgba(239, 68, 68, 0.10)' : 'var(--bg-surface)',
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    Mistakes: <strong style={{ color: state.mistakes > 0 ? 'var(--color-conflict, #ef4444)' : 'var(--text-primary)' }}>{state.mistakes}</strong>
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '0.73rem',
-                      fontWeight: 600,
-                      color: 'var(--text-muted)',
-                      backgroundColor: 'var(--bg-surface)',
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    Hints: <strong style={{ color: 'var(--text-primary)' }}>{state.hintsUsed}</strong>
-                  </span>
                 </div>
               </div>
 
-              {/* Row 4: Subtle Variant Rule Note */}
+              {/* Row 4: Subtle Variant Rule Note (preserved until Stage c) */}
               {variantConfig && variantConfig.metadata.id !== 'classic' && (
                 <div
                   style={{
@@ -1083,37 +921,54 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   </span>
                 </div>
               )}
+
+              {/* New Game Configuration Panel (Stage b) */}
+              <NewGamePanel
+                isOpen={isNewGameOpen}
+                onClose={() => setIsNewGameOpen(false)}
+                currentDifficulty={difficulty}
+                currentVariantId={variantId}
+                hasActiveMoves={hasActiveMoves}
+                onGenerate={handleGenerateNewGame}
+              />
             </div>
           </div>
 
-          {/* Sub-Mode Switcher: Play vs Watch Solver */}
-          <div className="panel-tabs-section" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+          {/* Sub-Mode Switcher: Play vs CSP vs GHB */}
+          <div className="panel-tabs-section" data-testid="submode-tabs" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
             <div className="ui-segmented" role="tablist">
               <button
                 role="tab"
                 aria-selected={subMode === 'play'}
                 className={`ui-segmented-item ${subMode === 'play' ? 'active' : ''}`}
                 onClick={() => setSubMode('play')}
+                title="Play Mode"
+                aria-label="Play Mode"
               >
-                <span>Play Mode</span>
+                <span className="tab-title-primary">PLAY</span>
+                <span className="tab-title-secondary">Manual Mode</span>
               </button>
               <button
                 role="tab"
                 aria-selected={subMode === 'solver' && solverType === 'smart'}
                 className={`ui-segmented-item ${subMode === 'solver' && solverType === 'smart' ? 'active' : ''}`}
                 onClick={() => handleOpenSolver('smart')}
+                title="Constraint Satisfaction (CSP) Solver"
+                aria-label="Constraint Satisfaction (CSP) Solver"
               >
-                <Eye size={15} />
-                <span>Watch Solver</span>
+                <span className="tab-title-primary">CSP</span>
+                <span className="tab-title-secondary">Constraint Satisfaction</span>
               </button>
               <button
                 role="tab"
                 aria-selected={subMode === 'solver' && solverType === 'naive'}
                 className={`ui-segmented-item ${subMode === 'solver' && solverType === 'naive' ? 'active' : ''}`}
                 onClick={() => handleOpenSolver('naive')}
+                title="Greedy Heuristic + Backtracking Solver"
+                aria-label="Greedy Heuristic + Backtracking Solver"
               >
-                <Eye size={15} />
-                <span>Naive (red)</span>
+                <span className="tab-title-primary">GHB</span>
+                <span className="tab-title-secondary">Greedy + Backtracking</span>
               </button>
             </div>
 
@@ -1155,7 +1010,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   }}
                 >
                   <BarChart2 size={16} />
-                  <span>Compare Naive</span>
+                  <span>Compare (CSP vs GHB)</span>
                 </button>
               </div>
             ) : (
