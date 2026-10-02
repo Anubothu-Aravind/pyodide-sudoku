@@ -34,6 +34,7 @@ import {
   Eraser,
   Info,
   FileText,
+  X,
 } from 'lucide-react'
 
 export type PlayDifficulty = Difficulty | 'blank'
@@ -176,9 +177,9 @@ export const PlayView: React.FC<PlayViewProps> = ({
     const puzzleToSolve =
       isBlankGrid && state.cells.some((v) => v !== 0)
         ? state.cells.map((v) => (v === 0 ? '.' : String(v))).join('')
-        : state.givens
+        : (state.givens || '.'.repeat(81))
 
-    if (puzzleToSolve && puzzleToSolve.replace(/\./g, '').replace(/0/g, '').length > 0) {
+    if (puzzleToSolve) {
       if (!traceResult || lastSolvedGivensRef.current !== puzzleToSolve || lastSolvedTypeRef.current !== type) {
         runSolverTrace(puzzleToSolve, type, variantIdRef.current)
       }
@@ -223,7 +224,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
           givens: puzzle,
           solution,
         })
-        if (subModeRef.current === 'solver' && diff !== 'blank') {
+        if (subModeRef.current === 'solver') {
           runSolverTrace(puzzle, solverTypeRef.current, variant)
         }
       } catch (err: any) {
@@ -248,8 +249,8 @@ export const PlayView: React.FC<PlayViewProps> = ({
       givens: state.givens,
       solution: state.solution,
     })
-    if (subModeRef.current === 'solver' && difficultyRef.current !== 'blank') {
-      runSolverTrace(state.givens, solverTypeRef.current, variantIdRef.current)
+    if (subModeRef.current === 'solver') {
+      runSolverTrace(state.givens || '.'.repeat(81), solverTypeRef.current, variantIdRef.current)
     }
   }, [state.givens, state.solution, runSolverTrace])
 
@@ -261,9 +262,9 @@ export const PlayView: React.FC<PlayViewProps> = ({
     const puzzleToSolve =
       isBlankGrid && state.cells.some((v) => v !== 0)
         ? state.cells.map((v) => (v === 0 ? '.' : String(v))).join('')
-        : state.givens
+        : (state.givens || '.'.repeat(81))
 
-    if (subMode === 'solver' && puzzleToSolve && puzzleToSolve.replace(/\./g, '').replace(/0/g, '').length > 0) {
+    if (subMode === 'solver' && puzzleToSolve) {
       if (!traceResult || lastSolvedGivensRef.current !== puzzleToSolve || lastSolvedTypeRef.current !== solverType) {
         runSolverTrace(puzzleToSolve, solverType, variantId)
       }
@@ -468,8 +469,12 @@ export const PlayView: React.FC<PlayViewProps> = ({
 
   // Check puzzle validity
   const handleCheckPuzzle = async () => {
-    const gridStr = state.cells.map((v) => (v === 0 ? '.' : String(v))).join('')
-    const placedCount = state.cells.filter((v) => v !== 0).length
+    const cellsToCheck =
+      subMode === 'solver' && currentFrame?.cells
+        ? currentFrame.cells
+        : state.cells
+    const gridStr = cellsToCheck.map((v) => (v === 0 ? '.' : String(v))).join('')
+    const placedCount = cellsToCheck.filter((v) => v !== 0).length
 
     if (placedCount === 0) {
       setIsCheckNotice('Board is completely empty. Enter digits to check.')
@@ -741,11 +746,12 @@ export const PlayView: React.FC<PlayViewProps> = ({
                 boxShadow: 'var(--shadow-sm)',
                 width: '100%',
                 boxSizing: 'border-box' as const,
-                overflow: 'hidden',
+                overflow: 'visible',
+                position: 'relative',
               }}
             >
-              {/* Row 1: Home + Difficulty + Variant + Info */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', minWidth: 0 }}>
+              {/* Row 1: Home + Difficulty */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                 {onGoHome && (
                   <button
                     onClick={onGoHome}
@@ -763,6 +769,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                       fontWeight: 600,
                       cursor: 'pointer',
                       flexShrink: 0,
+                      height: '32px',
                     }}
                   >
                     <Home size={14} />
@@ -775,20 +782,24 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   onChange={(e) => {
                     const d = e.target.value as PlayDifficulty
                     setDifficulty(d)
+                    try {
+                      localStorage.setItem('sudoku_free_difficulty', d)
+                    } catch {}
                     const newSeed = `seed_${Math.random().toString(36).slice(2)}`
                     setActiveSeed(newSeed)
                     loadNewGame(d, newSeed, variantId)
                   }}
                   style={{
-                    padding: '5px 6px',
+                    padding: '5px 8px',
                     borderRadius: 'var(--radius-sm)',
                     border: '1px solid var(--border-subtle)',
                     backgroundColor: 'var(--bg-base)',
                     color: 'var(--text-primary)',
                     fontWeight: 600,
                     fontSize: '0.82rem',
-                    flex: '1 1 auto',
+                    flex: 1,
                     minWidth: 0,
+                    height: '32px',
                   }}
                 >
                   <option value="beginner">Beginner</option>
@@ -798,48 +809,51 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   <option value="expert">Expert</option>
                   <option value="blank">Blank Grid</option>
                 </select>
+              </div>
 
-                {/* Variant selector with Info Popover */}
-                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flex: '1 1 auto', minWidth: 0 }}>
-                  <select
-                    value={variantId}
-                    onChange={(e) => {
-                      const v = e.target.value as VariantId
-                      setVariantId(v)
-                      setShowVariantInfo(false)
-                      setSubMode('play')
-                      setTraceResult(null)
-                      setIsSolverTracing(false)
-                      try {
-                        localStorage.setItem('sudoku_free_variant', v)
-                      } catch {}
-                      const newSeed = `seed_${Math.random().toString(36).slice(2)}`
-                      setActiveSeed(newSeed)
-                      loadNewGame(difficulty, newSeed, v)
-                    }}
-                    title="Sudoku variant"
-                    style={{
-                      padding: '5px 6px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: `1px solid ${variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
-                      backgroundColor: variantId !== 'classic' ? 'rgba(78,161,255,0.10)' : 'var(--bg-base)',
-                      color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-primary)',
-                      fontWeight: 600,
-                      fontSize: '0.82rem',
-                      flex: 1,
-                      minWidth: 0,
-                      maxWidth: '120px',
-                    }}
-                  >
-                    <option value="classic">Classic</option>
-                    <option value="diagonal">Diagonal</option>
-                    <option value="windoku">Windoku</option>
-                    <option value="center-dot">Center Dot</option>
-                    <option value="asterisk">Asterisk</option>
-                    <option value="girandola">Girandola</option>
-                    <option value="disjoint">Disjoint</option>
-                  </select>
+              {/* Row 2: Variant + Info + Blank Toggle + Refresh */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', position: 'relative' }}>
+                <select
+                  value={variantId}
+                  onChange={(e) => {
+                    const v = e.target.value as VariantId
+                    setVariantId(v)
+                    setShowVariantInfo(false)
+                    setSubMode('play')
+                    setTraceResult(null)
+                    setIsSolverTracing(false)
+                    try {
+                      localStorage.setItem('sudoku_free_variant', v)
+                    } catch {}
+                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
+                    setActiveSeed(newSeed)
+                    loadNewGame(difficulty, newSeed, v)
+                  }}
+                  title="Sudoku variant"
+                  style={{
+                    padding: '5px 8px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: `1px solid ${variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
+                    backgroundColor: variantId !== 'classic' ? 'rgba(78,161,255,0.10)' : 'var(--bg-base)',
+                    color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-primary)',
+                    fontWeight: 600,
+                    fontSize: '0.82rem',
+                    flex: '1 1 auto',
+                    minWidth: 0,
+                    height: '32px',
+                  }}
+                >
+                  <option value="classic">Classic</option>
+                  <option value="diagonal">Diagonal</option>
+                  <option value="windoku">Windoku</option>
+                  <option value="center-dot">Center Dot</option>
+                  <option value="asterisk">Asterisk</option>
+                  <option value="girandola">Girandola</option>
+                  <option value="disjoint">Disjoint</option>
+                </select>
 
+                {/* Variant Info button & Popover */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={() => setShowVariantInfo((v) => !v)}
@@ -847,8 +861,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     title="Variant rules & marked cells"
                     className="ui-btn ui-btn-outline"
                     style={{
-                      marginLeft: '3px',
-                      padding: '5px 6px',
+                      padding: '5px 8px',
                       minHeight: '32px',
                       borderRadius: 'var(--radius-sm)',
                       display: 'flex',
@@ -856,7 +869,6 @@ export const PlayView: React.FC<PlayViewProps> = ({
                       justifyContent: 'center',
                       color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-secondary)',
                       borderColor: showVariantInfo ? 'var(--accent-blue)' : undefined,
-                      flexShrink: 0,
                     }}
                   >
                     <Info size={15} />
@@ -869,48 +881,27 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     />
                   )}
                 </div>
-              </div>
 
-              {/* Row 2: Refresh + Blank */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                {/* Blank Mode Toggle Button */}
                 <button
                   type="button"
                   onClick={() => {
+                    const nextDiff = difficulty === 'blank' ? 'medium' : 'blank'
+                    setDifficulty(nextDiff)
+                    try {
+                      localStorage.setItem('sudoku_free_difficulty', nextDiff)
+                    } catch {}
                     const newSeed = `seed_${Math.random().toString(36).slice(2)}`
                     setActiveSeed(newSeed)
-                    loadNewGame(difficulty, newSeed, variantId)
+                    loadNewGame(nextDiff, newSeed, variantId)
                   }}
-                  title="Generate new random puzzle"
-                  aria-label="Generate new random puzzle"
-                  style={{
-                    padding: '5px',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--text-secondary)',
-                    minHeight: '32px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                  }}
-                >
-                  <RefreshCw size={16} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDifficulty('blank')
-                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
-                    setActiveSeed(newSeed)
-                    loadNewGame('blank', newSeed, variantId)
-                  }}
-                  title="Clear to blank grid"
-                  aria-label="Blank Grid"
+                  title={difficulty === 'blank' ? 'Exit blank mode (load Medium puzzle)' : 'Clear to blank grid'}
+                  aria-label={difficulty === 'blank' ? 'Exit Blank Grid' : 'Blank Grid'}
                   style={{
                     padding: '5px 8px',
                     borderRadius: 'var(--radius-sm)',
                     border: `1px solid ${difficulty === 'blank' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
-                    backgroundColor: difficulty === 'blank' ? 'rgba(78,161,255,0.12)' : 'var(--bg-base)',
+                    backgroundColor: difficulty === 'blank' ? 'rgba(78,161,255,0.14)' : 'var(--bg-base)',
                     color: difficulty === 'blank' ? 'var(--accent-blue)' : 'var(--text-secondary)',
                     fontWeight: 600,
                     fontSize: '0.8rem',
@@ -922,8 +913,39 @@ export const PlayView: React.FC<PlayViewProps> = ({
                     flexShrink: 0,
                   }}
                 >
-                  <FileText size={14} />
-                  <span>Blank</span>
+                  {difficulty === 'blank' ? <X size={14} /> : <FileText size={14} />}
+                  <span>{difficulty === 'blank' ? 'Exit Blank' : 'Blank'}</span>
+                </button>
+
+                {/* Refresh / New Puzzle Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetDiff = difficulty === 'blank' ? 'medium' : difficulty
+                    if (difficulty === 'blank') {
+                      setDifficulty('medium')
+                      try {
+                        localStorage.setItem('sudoku_free_difficulty', 'medium')
+                      } catch {}
+                    }
+                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
+                    setActiveSeed(newSeed)
+                    loadNewGame(targetDiff, newSeed, variantId)
+                  }}
+                  title="Generate new random puzzle"
+                  aria-label="Generate new random puzzle"
+                  style={{
+                    padding: '5px 8px',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-secondary)',
+                    minHeight: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  <RefreshCw size={16} />
                 </button>
               </div>
 
@@ -1033,25 +1055,46 @@ export const PlayView: React.FC<PlayViewProps> = ({
             </div>
 
             {subMode === 'solver' ? (
-              <button
-                onClick={handleRunNaiveCompare}
-                disabled={!traceResult || isSolverTracing}
-                className="ui-btn ui-btn-outline"
-                style={{
-                  width: '100%',
-                  padding: '8px 14px',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  minHeight: '40px',
-                }}
-              >
-                <BarChart2 size={16} />
-                <span>Compare Naive</span>
-              </button>
+              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                <button
+                  onClick={handleCheckPuzzle}
+                  disabled={isLoading}
+                  className="ui-btn ui-btn-outline"
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    minHeight: '40px',
+                  }}
+                >
+                  <CheckCircle size={16} />
+                  <span>Check</span>
+                </button>
+                <button
+                  onClick={handleRunNaiveCompare}
+                  disabled={!traceResult || isSolverTracing}
+                  className="ui-btn ui-btn-outline"
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    minHeight: '40px',
+                  }}
+                >
+                  <BarChart2 size={16} />
+                  <span>Compare Naive</span>
+                </button>
+              </div>
             ) : (
               <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                 {enableHints && (
@@ -1216,7 +1259,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
               </div>
             )}
 
-            {isCheckNotice && subMode === 'play' && (
+            {isCheckNotice && (
               <div
                 role="status"
                 aria-live="polite"

@@ -925,30 +925,7 @@ button:focus-visible {
   border-color: var(--bg-surface) transparent transparent transparent;
 }
 
-/* Header buttons: Skip Tour and Close (✕) – NO divider lines */
-.driver-popover.sudoku-tour-popover .tour-skip-btn {
-  position: absolute;
-  top: 10px;
-  right: 36px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-family: inherit;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  letter-spacing: 0.02em;
-  transition: color 0.15s, background-color 0.15s;
-  z-index: 10;
-}
-
-.driver-popover.sudoku-tour-popover .tour-skip-btn:hover {
-  color: var(--accent-blue);
-  background-color: var(--color-player-bg);
-}
-
+/* Header: Close (✕) acts as End Tour */
 .driver-popover.sudoku-tour-popover button.driver-popover-close-btn {
   position: absolute;
   top: 8px;
@@ -1017,7 +994,7 @@ button:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-right: 18px; /* space so text doesn't clash with top right skip/close buttons */
+  padding-right: 18px; /* space so text doesn't clash with top right close button */
 }
 
 .driver-popover.sudoku-tour-popover .driver-popover-title {
@@ -1064,7 +1041,7 @@ button:focus-visible {
   gap: 8px;
 }
 
-/* Clean text-style navigation buttons (Image 2 style) */
+/* Clean text-style navigation buttons (Image 2 style, strictly NO underlines) */
 .driver-popover.sudoku-tour-popover button.driver-popover-prev-btn {
   background: transparent;
   color: var(--text-muted);
@@ -1075,10 +1052,14 @@ button:focus-visible {
   cursor: pointer;
   transition: color 0.15s;
   font-family: inherit;
+  text-decoration: none !important;
 }
 
-.driver-popover.sudoku-tour-popover button.driver-popover-prev-btn:hover {
+.driver-popover.sudoku-tour-popover button.driver-popover-prev-btn:hover,
+.driver-popover.sudoku-tour-popover button.driver-popover-prev-btn:focus,
+.driver-popover.sudoku-tour-popover button.driver-popover-prev-btn:active {
   color: var(--text-primary);
+  text-decoration: none !important;
 }
 
 .driver-popover.sudoku-tour-popover button.driver-popover-next-btn,
@@ -1092,12 +1073,17 @@ button:focus-visible {
   cursor: pointer;
   transition: opacity 0.15s;
   font-family: inherit;
+  text-decoration: none !important;
 }
 
 .driver-popover.sudoku-tour-popover button.driver-popover-next-btn:hover,
-.driver-popover.sudoku-tour-popover button.driver-popover-done-btn:hover {
+.driver-popover.sudoku-tour-popover button.driver-popover-next-btn:focus,
+.driver-popover.sudoku-tour-popover button.driver-popover-next-btn:active,
+.driver-popover.sudoku-tour-popover button.driver-popover-done-btn:hover,
+.driver-popover.sudoku-tour-popover button.driver-popover-done-btn:focus,
+.driver-popover.sudoku-tour-popover button.driver-popover-done-btn:active {
   opacity: 0.8;
-  text-decoration: underline;
+  text-decoration: none !important;
 }
 
 .driver-overlay {

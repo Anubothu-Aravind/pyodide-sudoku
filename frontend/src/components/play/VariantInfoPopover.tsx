@@ -94,9 +94,11 @@ export const VariantInfoPopover: React.FC<VariantInfoPopoverProps> = ({
       style={{
         position: 'absolute',
         top: 'calc(100% + 8px)',
-        left: 0,
+        right: 0,
         zIndex: 50,
         width: '280px',
+        maxWidth: 'calc(100vw - 32px)',
+        boxSizing: 'border-box',
         padding: '14px',
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--accent-blue)',

@@ -118,23 +118,11 @@ export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
       onPopoverRender: (popoverDOM) => {
         const { wrapper, title, description, footer, closeButton } = popoverDOM
 
-        // 1. Skip Tour button (clean text button at top-right next to close, NO horizontal line!)
-        if (!wrapper.querySelector('.tour-skip-btn')) {
-          const skipBtn = document.createElement('button')
-          skipBtn.type = 'button'
-          skipBtn.className = 'tour-skip-btn'
-          skipBtn.textContent = 'Skip Tour'
-          skipBtn.setAttribute('aria-label', 'Skip the guided tour')
-          skipBtn.onclick = (e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            markTourSeen()
-            d.destroy()
-          }
-          wrapper.insertBefore(skipBtn, closeButton)
-        }
+        // Configure close button as 'End tour'
+        closeButton.setAttribute('aria-label', 'End tour')
+        closeButton.setAttribute('title', 'End tour')
 
-        // 2. Avatar + Text layout (like reference image 2)
+        // Avatar + Text layout (like reference image 2)
         if (!wrapper.querySelector('.tour-card-body')) {
           const cardBody = document.createElement('div')
           cardBody.className = 'tour-card-body'
