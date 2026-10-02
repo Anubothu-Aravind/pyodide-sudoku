@@ -3,10 +3,13 @@
  *
  * Shows automatically on first visit (localStorage key 'sudoku_tour_seen').
  * Can be triggered manually (e.g. from Settings) via the exported helper.
+ *
+ * NOTE on driver.js v1: `onDestroyStarted` intercepts close/X/Escape but
+ * does NOT auto-dismiss — `.destroy()` must be called manually inside it.
  */
 
 import { useEffect, useRef } from 'react'
-import { driver } from 'driver.js'
+import { driver, type Driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
 
 const TOUR_SEEN_KEY = 'sudoku_tour_seen'
@@ -31,75 +34,57 @@ export function resetTour(): void {
   } catch {}
 }
 
-function buildDriver(onDone: () => void) {
-  return driver({
-    showProgress: true,
-    animate: true,
-    allowClose: true,
-    overlayOpacity: 0.6,
-    smoothScroll: true,
-    stagePadding: 6,
-    popoverClass: 'sudoku-tour-popover',
-    progressText: '{{current}} / {{total}}',
-    nextBtnText: 'Next →',
-    prevBtnText: '← Back',
-    doneBtnText: 'Got it!',
-    onDestroyStarted: () => {
-      onDone()
+const STEPS = [
+  {
+    popover: {
+      title: 'Welcome to Sudoku!',
+      description:
+        'This quick tour shows you the main features. You can skip it at any time or replay it from Settings.',
+      side: 'bottom' as const,
+      align: 'center' as const,
     },
-    steps: [
-      {
-        popover: {
-          title: 'Welcome to Sudoku!',
-          description:
-            'This quick tour shows you the main features. You can skip it at any time or replay it from Settings.',
-          side: 'bottom',
-          align: 'center',
-        },
-      },
-      {
-        element: '#nav-campaign-btn',
-        popover: {
-          title: 'Campaign Mode',
-          description:
-            'Play through hand-crafted levels with increasing difficulty. Earn stars and climb the leaderboard!',
-          side: 'bottom',
-          align: 'start',
-        },
-      },
-      {
-        element: '#nav-freeplay-btn',
-        popover: {
-          title: 'Free Play Mode',
-          description:
-            'Generate endless puzzles with custom seeds, pick your difficulty, and choose from 7 variants (Diagonal, Windoku, Disjoint…)',
-          side: 'bottom',
-          align: 'start',
-        },
-      },
-      {
-        element: '#nav-settings-btn',
-        popover: {
-          title: 'Settings',
-          description:
-            'Customize the theme, toggle hints, set conflict highlighting, and manage your progress data here.',
-          side: 'bottom',
-          align: 'end',
-        },
-      },
-      {
-        element: '#nav-streak-badge',
-        popover: {
-          title: 'Streak & Stars',
-          description:
-            'Your daily streak and total star count are shown here. Keep playing every day to grow your streak!',
-          side: 'bottom',
-          align: 'end',
-        },
-      },
-    ],
-  })
-}
+  },
+  {
+    element: '#nav-campaign-btn',
+    popover: {
+      title: 'Campaign Mode',
+      description:
+        'Play through hand-crafted levels with increasing difficulty. Earn stars and climb the leaderboard!',
+      side: 'bottom' as const,
+      align: 'start' as const,
+    },
+  },
+  {
+    element: '#nav-freeplay-btn',
+    popover: {
+      title: 'Free Play Mode',
+      description:
+        'Generate endless puzzles with custom seeds, pick your difficulty, and choose from 7 variants (Diagonal, Windoku, Disjoint...)',
+      side: 'bottom' as const,
+      align: 'start' as const,
+    },
+  },
+  {
+    element: '#nav-settings-btn',
+    popover: {
+      title: 'Settings',
+      description:
+        'Customize the theme, toggle hints, set conflict highlighting, and manage your progress data here.',
+      side: 'bottom' as const,
+      align: 'end' as const,
+    },
+  },
+  {
+    element: '#nav-streak-badge',
+    popover: {
+      title: 'Streak & Stars',
+      description:
+        'Your daily streak and total star count are shown here. Keep playing every day to grow your streak!',
+      side: 'bottom' as const,
+      align: 'end' as const,
+    },
+  },
+]
 
 interface AppTourProps {
   /** When true, auto-start on first visit (unless already seen). */
@@ -109,15 +94,38 @@ interface AppTourProps {
 }
 
 export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
-  const driverRef = useRef<ReturnType<typeof driver> | null>(null)
+  const driverRef = useRef<Driver | null>(null)
 
   const startTour = () => {
+    // Destroy any existing instance first
     if (driverRef.current) {
       driverRef.current.destroy()
+      driverRef.current = null
     }
-    const d = buildDriver(() => {
-      markTourSeen()
+
+    const d = driver({
+      showProgress: true,
+      animate: true,
+      // allowClose lets the X button and overlay-click fire onDestroyStarted
+      allowClose: true,
+      overlayOpacity: 0.6,
+      smoothScroll: true,
+      stagePadding: 6,
+      popoverClass: 'sudoku-tour-popover',
+      progressText: '{{current}} / {{total}}',
+      nextBtnText: 'Next ->',
+      prevBtnText: '<- Back',
+      doneBtnText: 'Got it!',
+      // In driver.js v1 this callback intercepts close but does NOT auto-close.
+      // We must call destroy() ourselves to actually dismiss the tour.
+      onDestroyStarted: () => {
+        markTourSeen()
+        driverRef.current?.destroy()
+        driverRef.current = null
+      },
+      steps: STEPS,
     })
+
     driverRef.current = d
     d.drive()
   }
@@ -126,7 +134,6 @@ export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
   useEffect(() => {
     if (!autoStart) return
     if (hasSeenTour()) return
-
     // Small delay so the DOM is fully painted
     const timer = setTimeout(startTour, 800)
     return () => clearTimeout(timer)
@@ -144,6 +151,7 @@ export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
   useEffect(() => {
     return () => {
       driverRef.current?.destroy()
+      driverRef.current = null
     }
   }, [])
 
