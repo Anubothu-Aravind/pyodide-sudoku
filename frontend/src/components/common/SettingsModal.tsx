@@ -145,10 +145,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         inset: 0,
         backgroundColor: 'var(--bg-overlay)',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         justifyContent: 'center',
-        padding: '16px',
+        padding: '24px 16px',
         zIndex: 100,
+        overflowY: 'auto',
       }}
     >
       <div
@@ -157,15 +158,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           backgroundColor: 'var(--bg-surface)',
           border: '2px solid var(--accent-blue)',
           borderRadius: 'var(--radius-md)',
-          padding: '24px 28px',
+          padding: '20px 24px',
           width: '100%',
           maxWidth: '480px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
           boxShadow: 'var(--shadow-lg)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '20px',
+          gap: '16px',
         }}
       >
         {/* Header */}
@@ -250,7 +249,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Section: Gameplay */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span
             style={{
               fontFamily: 'var(--font-display)',
