@@ -1011,21 +1011,26 @@ button:focus-visible {
   background: var(--bg-overlay) !important;
 }
 
-/* Skip Tour button – right-aligned inside footer via margin-left: auto */
+/* Skip Tour button – bar at the very top of the popover */
 .tour-skip-link {
+  display: block;
+  width: 100%;
   background: none;
   border: none;
+  border-bottom: 1px solid var(--border-subtle);
   color: var(--text-muted);
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-family: 'Russo One', sans-serif;
   cursor: pointer;
-  padding: 4px 2px;
-  margin-left: auto;
+  padding: 6px 12px;
+  text-align: right;
   text-decoration: underline;
   text-underline-offset: 2px;
+  letter-spacing: 0.04em;
   transition: color 0.15s;
   white-space: nowrap;
-  flex-shrink: 0;
+  box-sizing: border-box;
+  margin-bottom: 8px;
 }
 
 .tour-skip-link:hover {
