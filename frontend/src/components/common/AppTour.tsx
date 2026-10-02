@@ -4,8 +4,9 @@
  * Shows automatically on first visit (localStorage key 'sudoku_tour_seen').
  * Can be triggered manually (e.g. from Settings) via the exported helper.
  *
- * NOTE on driver.js v1: `onDestroyStarted` intercepts close/X/Escape but
- * does NOT auto-dismiss — `.destroy()` must be called manually inside it.
+ * driver.js v1 quirks:
+ *  - onDestroyStarted intercepts close but does NOT auto-close; must call destroy() manually.
+ *  - No built-in skipBtnText; we inject a "Skip Tour" link via onHighlightStarted.
  */
 
 import { useEffect, useRef } from 'react'
@@ -34,12 +35,32 @@ export function resetTour(): void {
   } catch {}
 }
 
+/** Injects a "Skip Tour" link into the driver.js popover footer. */
+function injectSkipButton(d: Driver) {
+  // Small tick so the popover is already in the DOM
+  setTimeout(() => {
+    const footer = document.querySelector('.driver-popover-footer')
+    if (!footer || footer.querySelector('.tour-skip-link')) return
+
+    const skip = document.createElement('button')
+    skip.textContent = 'Skip Tour'
+    skip.className = 'tour-skip-link'
+    skip.type = 'button'
+    skip.setAttribute('aria-label', 'Skip the guided tour')
+    skip.onclick = () => {
+      markTourSeen()
+      d.destroy()
+    }
+    footer.appendChild(skip)
+  }, 10)
+}
+
 const STEPS = [
   {
     popover: {
       title: 'Welcome to Sudoku!',
       description:
-        'This quick tour shows you the main features. You can skip it at any time or replay it from Settings.',
+        'This quick tour shows you the main features. You can skip it at any time.',
       side: 'bottom' as const,
       align: 'center' as const,
     },
@@ -87,9 +108,7 @@ const STEPS = [
 ]
 
 interface AppTourProps {
-  /** When true, auto-start on first visit (unless already seen). */
   autoStart?: boolean
-  /** External trigger: bump this to manually launch the tour. */
   triggerCount?: number
 }
 
@@ -97,7 +116,6 @@ export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
   const driverRef = useRef<Driver | null>(null)
 
   const startTour = () => {
-    // Destroy any existing instance first
     if (driverRef.current) {
       driverRef.current.destroy()
       driverRef.current = null
@@ -106,7 +124,6 @@ export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
     const d = driver({
       showProgress: true,
       animate: true,
-      // allowClose lets the X button and overlay-click fire onDestroyStarted
       allowClose: true,
       overlayOpacity: 0.6,
       smoothScroll: true,
@@ -116,8 +133,12 @@ export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
       nextBtnText: 'Next ->',
       prevBtnText: '<- Back',
       doneBtnText: 'Got it!',
-      // In driver.js v1 this callback intercepts close but does NOT auto-close.
-      // We must call destroy() ourselves to actually dismiss the tour.
+      // Inject "Skip Tour" button into each popover as it renders
+      onHighlightStarted: () => {
+        injectSkipButton(d)
+      },
+      // onDestroyStarted intercepts close (X / Escape / overlay click)
+      // but does NOT auto-close in driver.js v1 — must call destroy() manually.
       onDestroyStarted: () => {
         markTourSeen()
         driverRef.current?.destroy()
@@ -130,24 +151,20 @@ export function AppTour({ autoStart = true, triggerCount = 0 }: AppTourProps) {
     d.drive()
   }
 
-  // Auto-start on mount if first visit
   useEffect(() => {
     if (!autoStart) return
     if (hasSeenTour()) return
-    // Small delay so the DOM is fully painted
     const timer = setTimeout(startTour, 800)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart])
 
-  // Manual trigger (bump triggerCount from outside)
   useEffect(() => {
     if (triggerCount <= 0) return
     startTour()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triggerCount])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       driverRef.current?.destroy()

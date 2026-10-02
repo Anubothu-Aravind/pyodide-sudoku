@@ -964,3 +964,24 @@ button:focus-visible {
   background: rgba(11, 15, 20, 0.72) !important;
 }
 
+/* Skip Tour button injected into popover footer */
+.tour-skip-link {
+  background: none;
+  border: none;
+  color: var(--text-muted, #6a7a94);
+  font-size: 0.74rem;
+  font-family: 'Russo One', sans-serif;
+  cursor: pointer;
+  padding: 4px 2px;
+  margin-left: auto;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+
+.tour-skip-link:hover {
+  color: #4EA1FF;
+}
+
+
