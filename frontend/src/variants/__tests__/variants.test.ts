@@ -14,6 +14,7 @@ import {
   buildVariantPeerMap,
   type VariantId,
 } from '../index'
+import { computeConflicts } from '../../reducers/playReducer'
 
 describe('Variant system', () => {
   // -----------------------------------------------------------------------
@@ -286,5 +287,179 @@ describe('Variant system', () => {
         expect(v.metadata.id).toBe(id)
       }
     )
+  })
+
+  // -----------------------------------------------------------------------
+  describe('Variant Conflict Detection per Variant', () => {
+    it('detects diagonal conflicts without row/col/box sharing', () => {
+      const diagConfig = getVariant('diagonal')
+      const groups = diagConfig.constraints.validation.map((g) => g.cells)
+
+      // Cell 0 (R1C1) and Cell 80 (R9C9) do not share row, col, or box
+      const cells = new Array(81).fill(0)
+      cells[0] = 5
+      cells[80] = 5
+
+      expect(computeConflicts(cells, [])).toEqual(new Set())
+      const conflicts = computeConflicts(cells, groups)
+      expect(conflicts.has(0)).toBe(true)
+      expect(conflicts.has(80)).toBe(true)
+
+      // Anti-diagonal: Cell 8 (R1C9) and Cell 72 (R9C1)
+      const antiCells = new Array(81).fill(0)
+      antiCells[8] = 9
+      antiCells[72] = 9
+      expect(computeConflicts(antiCells, [])).toEqual(new Set())
+      const antiConflicts = computeConflicts(antiCells, groups)
+      expect(antiConflicts.has(8)).toBe(true)
+      expect(antiConflicts.has(72)).toBe(true)
+    })
+
+    it('detects Windoku window conflicts across different rows/cols/boxes', () => {
+      const windokuConfig = getVariant('windoku')
+      const groups = windokuConfig.constraints.validation.map((g) => g.cells)
+
+      // Cell 10 (R2C2, box 0) and Cell 30 (R4C4, box 4) share Top-Left Window
+      const cells = new Array(81).fill(0)
+      cells[10] = 7
+      cells[30] = 7
+
+      expect(computeConflicts(cells, [])).toEqual(new Set())
+      const conflicts = computeConflicts(cells, groups)
+      expect(conflicts.has(10)).toBe(true)
+      expect(conflicts.has(30)).toBe(true)
+    })
+
+    it('detects Center Dot conflicts across different boxes', () => {
+      const cdConfig = getVariant('center-dot')
+      const groups = cdConfig.constraints.validation.map((g) => g.cells)
+
+      // Cell 10 (R2C2, box 0) and Cell 70 (R8C8, box 8) both in Center Dot group
+      const cells = new Array(81).fill(0)
+      cells[10] = 3
+      cells[70] = 3
+
+      expect(computeConflicts(cells, [])).toEqual(new Set())
+      const conflicts = computeConflicts(cells, groups)
+      expect(conflicts.has(10)).toBe(true)
+      expect(conflicts.has(70)).toBe(true)
+    })
+
+    it('detects Asterisk conflicts across different boxes', () => {
+      const astConfig = getVariant('asterisk')
+      const groups = astConfig.constraints.validation.map((g) => g.cells)
+
+      // Cell 20 (R3C3, box 0) and Cell 60 (R7C7, box 8) both in Asterisk group
+      const cells = new Array(81).fill(0)
+      cells[20] = 4
+      cells[60] = 4
+
+      expect(computeConflicts(cells, [])).toEqual(new Set())
+      const conflicts = computeConflicts(cells, groups)
+      expect(conflicts.has(20)).toBe(true)
+      expect(conflicts.has(60)).toBe(true)
+    })
+
+    it('detects Girandola conflicts across corners and center', () => {
+      const girConfig = getVariant('girandola')
+      const groups = girConfig.constraints.validation.map((g) => g.cells)
+
+      // Cell 0 (R1C1, box 0) and Cell 80 (R9C9, box 8) both in Girandola pinwheel
+      const cells = new Array(81).fill(0)
+      cells[0] = 9
+      cells[80] = 9
+
+      expect(computeConflicts(cells, [])).toEqual(new Set())
+      const conflicts = computeConflicts(cells, groups)
+      expect(conflicts.has(0)).toBe(true)
+      expect(conflicts.has(80)).toBe(true)
+    })
+
+    it('detects Disjoint Groups conflicts across identical box offsets', () => {
+      const djConfig = getVariant('disjoint')
+      const groups = djConfig.constraints.validation.map((g) => g.cells)
+
+      // Cell 0 (R1C1, box 0) and Cell 30 (R4C4, box 4) share top-left box offset
+      const cells = new Array(81).fill(0)
+      cells[0] = 2
+      cells[30] = 2
+
+      expect(computeConflicts(cells, [])).toEqual(new Set())
+      const conflicts = computeConflicts(cells, groups)
+      expect(conflicts.has(0)).toBe(true)
+      expect(conflicts.has(30)).toBe(true)
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  describe('Solved Variant Puzzle Validation', () => {
+    const SOLVED_PUZZLES: Record<VariantId, string> = {
+      classic:
+        '482369175931752486756148923673981254195427368824635791267514839549873612318296547',
+      diagonal:
+        '482369175931752486756148923673981254195427368824635791267514839549873612318296547',
+      windoku:
+        '498321657365847192127965438531476829872519346649283715756132984283794561914658273',
+      'center-dot':
+        '498321657365974281127568394842159763651743928973682415286435179514297836739816542',
+      asterisk:
+        '498321657365487129127695483819276534236854791754913862941538276572169348683742915',
+      girandola:
+        '472351986361892745859647312234185697986473521715926438197538264623714859548269173',
+      disjoint:
+        '467352189129867453835149267216978534784531692593426718641793825978215346352684971',
+    }
+
+    it.each([
+      'classic',
+      'diagonal',
+      'windoku',
+      'center-dot',
+      'asterisk',
+      'girandola',
+      'disjoint',
+    ] as VariantId[])(
+      'solved %s puzzle passes validation with 0 conflicts',
+      (variantId) => {
+        const config = getVariant(variantId)
+        const groups = config.constraints.validation.map((g) => g.cells)
+        const gridStr = SOLVED_PUZZLES[variantId]
+        const cells = gridStr.split('').map(Number)
+
+        expect(cells).toHaveLength(81)
+        expect(cells.every((d) => d >= 1 && d <= 9)).toBe(true)
+
+        // Standard + Variant conflict check must yield 0 conflicts
+        const conflicts = computeConflicts(cells, groups)
+        expect(conflicts.size).toBe(0)
+
+        // Verify each variant group has exactly 1-9
+        for (const g of config.constraints.validation) {
+          const vals = g.cells.map((idx) => cells[idx]).sort((a, b) => a - b)
+          expect(vals).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
+        }
+      }
+    )
+
+    it('violating a variant constraint causes validation failure', () => {
+      const config = getVariant('windoku')
+      const groups = config.constraints.validation.map((g) => g.cells)
+      const cells = SOLVED_PUZZLES.windoku.split('').map(Number)
+
+      // Top-Left window cells: [10, 11, 12, 19, 20, 21, 28, 29, 30]
+      // Swap two values within window that also break the window unique set
+      // (e.g. set cell 10 to same value as cell 30)
+      const originalVal10 = cells[10]
+      cells[10] = cells[30]
+
+      const conflicts = computeConflicts(cells, groups)
+      expect(conflicts.size).toBeGreaterThan(0)
+      expect(conflicts.has(10)).toBe(true)
+      expect(conflicts.has(30)).toBe(true)
+
+      // Restore
+      cells[10] = originalVal10
+      expect(computeConflicts(cells, groups).size).toBe(0)
+    })
   })
 })

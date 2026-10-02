@@ -16,6 +16,8 @@ import { ReplayEngine, type ReplayFrame } from '../../solver/replayEngine'
 import { NaiveCompareModal } from '../solver/NaiveCompareModal'
 import { SolverPlayback } from '../solver/SolverPlayback'
 import { getVariant, VARIANTS, type VariantId } from '../../variants'
+import { VariantInfoPopover } from './VariantInfoPopover'
+import type { ValidatedUserSettings } from '../../storage/validation'
 import {
   Play,
   Pause,
@@ -30,7 +32,7 @@ import {
   RotateCcw,
   RotateCw,
   Eraser,
-  Sparkles,
+  Info,
 } from 'lucide-react'
 
 export interface PlayViewProps {
@@ -38,6 +40,7 @@ export interface PlayViewProps {
   initialSeed?: string
   initialPuzzle?: string
   initialSubMode?: 'play' | 'solver'
+  userSettings?: ValidatedUserSettings
   onWatchSolver?: (puzzle: string) => void
   onGoHome?: () => void
 }
@@ -47,6 +50,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
   initialSeed,
   initialPuzzle,
   initialSubMode = 'play',
+  userSettings,
   onWatchSolver: _onWatchSolver,
   onGoHome,
 }) => {
@@ -57,7 +61,11 @@ export const PlayView: React.FC<PlayViewProps> = ({
   const [isCheckNotice, setIsCheckNotice] = useState<string | null>(null)
   const [shareNotice, setShareNotice] = useState<string | null>(null)
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false)
+  const [showVariantInfo, setShowVariantInfo] = useState<boolean>(false)
   const cancelBtnRef = useRef<HTMLButtonElement | null>(null)
+
+  const showRemainingCounts = userSettings?.showRemainingCounts ?? false
+  const enableHints = userSettings?.enableHints ?? true
 
   useEffect(() => {
     if (showResetConfirm) {
@@ -585,6 +593,7 @@ export const PlayView: React.FC<PlayViewProps> = ({
                 notesMode={state.notesMode}
                 canUndo={state.history.length > 0}
                 canRedo={state.redoStack.length > 0}
+                showRemainingCounts={showRemainingCounts}
                 onSelectDigit={(digit) => dispatch({ type: 'SET_DIGIT', digit })}
                 onClear={() => dispatch({ type: 'CLEAR_CELL' })}
                 onToggleNotes={() => dispatch({ type: 'TOGGLE_NOTES_MODE' })}
@@ -721,39 +730,70 @@ export const PlayView: React.FC<PlayViewProps> = ({
                   <option value="expert">Expert</option>
                 </select>
 
-                {/* Variant selector */}
-                <select
-                  value={variantId}
-                  onChange={(e) => {
-                    const v = e.target.value as VariantId
-                    setVariantId(v)
-                    try {
-                      localStorage.setItem('sudoku_free_variant', v)
-                    } catch {}
-                    const newSeed = `seed_${Math.random().toString(36).slice(2)}`
-                    setActiveSeed(newSeed)
-                    loadNewGame(difficulty, newSeed, v)
-                  }}
-                  title="Sudoku variant"
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: `1px solid ${variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
-                    backgroundColor: variantId !== 'classic' ? 'rgba(78,161,255,0.10)' : 'var(--bg-base)',
-                    color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-primary)',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    maxWidth: '145px',
-                  }}
-                >
-                  <option value="classic">Classic</option>
-                  <option value="diagonal">Diagonal ↗</option>
-                  <option value="windoku">Windoku ▦</option>
-                  <option value="center-dot">Center Dot ⦿</option>
-                  <option value="asterisk">Asterisk ✳</option>
-                  <option value="girandola">Girandola ✦</option>
-                  <option value="disjoint">Disjoint ⬡</option>
-                </select>
+                {/* Variant selector with Info Popover */}
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <select
+                    value={variantId}
+                    onChange={(e) => {
+                      const v = e.target.value as VariantId
+                      setVariantId(v)
+                      setShowVariantInfo(false)
+                      try {
+                        localStorage.setItem('sudoku_free_variant', v)
+                      } catch {}
+                      const newSeed = `seed_${Math.random().toString(36).slice(2)}`
+                      setActiveSeed(newSeed)
+                      loadNewGame(difficulty, newSeed, v)
+                    }}
+                    title="Sudoku variant"
+                    style={{
+                      padding: '6px 10px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: `1px solid ${variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--border-subtle)'}`,
+                      backgroundColor: variantId !== 'classic' ? 'rgba(78,161,255,0.10)' : 'var(--bg-base)',
+                      color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-primary)',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      maxWidth: '145px',
+                    }}
+                  >
+                    <option value="classic">Classic</option>
+                    <option value="diagonal">Diagonal</option>
+                    <option value="windoku">Windoku</option>
+                    <option value="center-dot">Center Dot</option>
+                    <option value="asterisk">Asterisk</option>
+                    <option value="girandola">Girandola</option>
+                    <option value="disjoint">Disjoint</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowVariantInfo((v) => !v)}
+                    aria-label={`View rules for ${variantConfig.metadata.name}`}
+                    title="Variant rules & marked cells"
+                    className="ui-btn ui-btn-outline"
+                    style={{
+                      marginLeft: '4px',
+                      padding: '6px 7px',
+                      minHeight: '34px',
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: variantId !== 'classic' ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                      borderColor: showVariantInfo ? 'var(--accent-blue)' : undefined,
+                    }}
+                  >
+                    <Info size={16} />
+                  </button>
+
+                  {showVariantInfo && (
+                    <VariantInfoPopover
+                      variantId={variantId}
+                      onClose={() => setShowVariantInfo(false)}
+                    />
+                  )}
+                </div>
 
                 <button
                   onClick={() => {
@@ -833,131 +873,135 @@ export const PlayView: React.FC<PlayViewProps> = ({
               {variantConfig && variantConfig.metadata.id !== 'classic' && (
                 <div
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
                     backgroundColor: 'rgba(78, 161, 255, 0.08)',
                     border: '1px solid rgba(78, 161, 255, 0.25)',
                     borderRadius: 'var(--radius-sm)',
-                    padding: '6px 12px',
+                    padding: '8px 12px',
                     fontSize: '0.8rem',
+                    lineHeight: 1.35,
                     color: 'var(--accent-blue)',
                     marginTop: '8px',
                     width: '100%',
                   }}
                 >
-                  <Sparkles size={14} style={{ flexShrink: 0 }} />
-                  <span>
-                    <strong>{variantConfig.metadata.name}:</strong> {variantConfig.metadata.description}
-                  </span>
+                  <strong>{variantConfig.metadata.name}:</strong> {variantConfig.metadata.description}
                 </div>
               )}
             </div>
           </div>
 
           {/* Sub-Mode Switcher: Play vs Watch Solver */}
-          <div className="panel-tabs-section">
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '8px',
-              }}
-            >
-              <div className="ui-segmented" role="tablist">
-                <button
-                  role="tab"
-                  aria-selected={subMode === 'play'}
-                  className={`ui-segmented-item ${subMode === 'play' ? 'active' : ''}`}
-                  onClick={() => setSubMode('play')}
-                >
-                  <span>Play Mode</span>
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={subMode === 'solver' && solverType === 'smart'}
-                  className={`ui-segmented-item ${subMode === 'solver' && solverType === 'smart' ? 'active' : ''}`}
-                  onClick={() => handleOpenSolver('smart')}
-                >
-                  <Eye size={15} />
-                  <span>Watch Solver</span>
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={subMode === 'solver' && solverType === 'naive'}
-                  className={`ui-segmented-item ${subMode === 'solver' && solverType === 'naive' ? 'active' : ''}`}
-                  onClick={() => handleOpenSolver('naive')}
-                >
-                  <Eye size={15} />
-                  <span>Naive (red)</span>
-                </button>
-              </div>
+          <div className="panel-tabs-section" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+            <div className="ui-segmented" role="tablist">
+              <button
+                role="tab"
+                aria-selected={subMode === 'play'}
+                className={`ui-segmented-item ${subMode === 'play' ? 'active' : ''}`}
+                onClick={() => setSubMode('play')}
+              >
+                <span>Play Mode</span>
+              </button>
+              <button
+                role="tab"
+                aria-selected={subMode === 'solver' && solverType === 'smart'}
+                className={`ui-segmented-item ${subMode === 'solver' && solverType === 'smart' ? 'active' : ''}`}
+                onClick={() => handleOpenSolver('smart')}
+              >
+                <Eye size={15} />
+                <span>Watch Solver</span>
+              </button>
+              <button
+                role="tab"
+                aria-selected={subMode === 'solver' && solverType === 'naive'}
+                className={`ui-segmented-item ${subMode === 'solver' && solverType === 'naive' ? 'active' : ''}`}
+                onClick={() => handleOpenSolver('naive')}
+              >
+                <Eye size={15} />
+                <span>Naive (red)</span>
+              </button>
+            </div>
 
-              {subMode === 'solver' ? (
-                <button
-                  onClick={handleRunNaiveCompare}
-                  disabled={!traceResult || isSolverTracing}
-                  className="ui-btn ui-btn-outline"
-                  style={{
-                    padding: '6px 14px',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <BarChart2 size={16} />
-                  <span>Compare Naive</span>
-                </button>
-              ) : (
-                <div style={{ display: 'flex', gap: '8px' }}>
+            {subMode === 'solver' ? (
+              <button
+                onClick={handleRunNaiveCompare}
+                disabled={!traceResult || isSolverTracing}
+                className="ui-btn ui-btn-outline"
+                style={{
+                  width: '100%',
+                  padding: '8px 14px',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  minHeight: '40px',
+                }}
+              >
+                <BarChart2 size={16} />
+                <span>Compare Naive</span>
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                {enableHints && (
                   <button
                     onClick={handleGetHint}
                     disabled={state.isPaused || state.isSolved || isLoading}
                     className="ui-btn ui-btn-outline"
                     style={{
-                      padding: '6px 14px',
-                      fontSize: '0.85rem',
+                      flex: 1,
+                      padding: '8px 12px',
+                      fontSize: '0.82rem',
                       fontWeight: 600,
                       display: 'flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '6px',
                       color: 'var(--color-logic)',
+                      minHeight: '40px',
                     }}
                   >
                     <Lightbulb size={16} />
                     <span>Get Hint</span>
                   </button>
-                  <button
-                    onClick={handleCheckPuzzle}
-                    disabled={state.isPaused || state.isSolved || isLoading}
-                    className="ui-btn ui-btn-outline"
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <CheckCircle size={16} />
-                    <span>Check</span>
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    title="Share puzzle link"
-                    className="ui-btn ui-btn-outline"
-                    style={{ padding: '6px 10px', display: 'flex', alignItems: 'center' }}
-                  >
-                    <Share2 size={16} />
-                  </button>
-                </div>
-              )}
-            </div>
+                )}
+                <button
+                  onClick={handleCheckPuzzle}
+                  disabled={state.isPaused || state.isSolved || isLoading}
+                  className="ui-btn ui-btn-outline"
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    minHeight: '40px',
+                  }}
+                >
+                  <CheckCircle size={16} />
+                  <span>Check</span>
+                </button>
+                <button
+                  onClick={handleShare}
+                  title="Share puzzle link"
+                  aria-label="Share puzzle link"
+                  className="ui-btn ui-btn-outline"
+                  style={{
+                    padding: '8px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '40px',
+                    minWidth: '44px',
+                  }}
+                >
+                  <Share2 size={16} />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Desktop Actions Bar: Undo, Redo, Erase (hidden on mobile, visible on desktop >=1000px) */}

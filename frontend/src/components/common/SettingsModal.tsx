@@ -160,7 +160,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           maxWidth: '480px',
           maxHeight: '90vh',
           overflowY: 'auto',
-          boxShadow: '0 0 30px rgba(0, 0, 0, 0.8)',
+          boxShadow: 'var(--shadow-lg)',
           display: 'flex',
           flexDirection: 'column',
           gap: '20px',
@@ -233,7 +233,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="ui-btn"
                   style={{
                     backgroundColor: isSelected ? 'var(--accent-blue)' : 'var(--bg-subtle)',
-                    color: isSelected ? 'var(--bg-deep)' : 'var(--text-high)',
+                    color: isSelected ? 'var(--text-inverse)' : 'var(--text-high)',
                     border: isSelected ? '1px solid var(--accent-blue)' : '1px solid var(--border-subtle)',
                     fontWeight: 700,
                     fontSize: '0.78rem',
@@ -342,6 +342,62 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }}
             >
               {settings.quietScreenReader ? 'ON' : 'OFF'}
+            </span>
+          </div>
+
+          {/* Show remaining digit counts */}
+          <div
+            onClick={() => handleUpdate({ showRemainingCounts: !settings.showRemainingCounts })}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') handleUpdate({ showRemainingCounts: !settings.showRemainingCounts })
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              padding: '6px 0',
+            }}
+          >
+            <span style={{ fontSize: '0.88rem', color: 'var(--text-high)' }}>Show remaining digit counts</span>
+            <span
+              style={{
+                fontFamily: 'var(--font-arcade)',
+                fontSize: '0.8rem',
+                color: settings.showRemainingCounts ? 'var(--accent-blue)' : 'var(--text-muted)',
+              }}
+            >
+              {settings.showRemainingCounts ? 'ON' : 'OFF'}
+            </span>
+          </div>
+
+          {/* Enable hints */}
+          <div
+            onClick={() => handleUpdate({ enableHints: !settings.enableHints })}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') handleUpdate({ enableHints: !settings.enableHints })
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              padding: '6px 0',
+            }}
+          >
+            <span style={{ fontSize: '0.88rem', color: 'var(--text-high)' }}>Enable hints</span>
+            <span
+              style={{
+                fontFamily: 'var(--font-arcade)',
+                fontSize: '0.8rem',
+                color: settings.enableHints ? 'var(--accent-blue)' : 'var(--text-muted)',
+              }}
+            >
+              {settings.enableHints ? 'ON' : 'OFF'}
             </span>
           </div>
         </div>

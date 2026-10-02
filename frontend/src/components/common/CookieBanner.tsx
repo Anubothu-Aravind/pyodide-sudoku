@@ -5,25 +5,29 @@
  * Remembers consent in localStorage and does not cover gameplay controls.
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 
 export interface CookieBannerProps {
   onOpenSettings: () => void
+  onAccept?: () => void
+  visible?: boolean
 }
 
-export const CookieBanner: React.FC<CookieBannerProps> = ({ onOpenSettings }) => {
-  const [visible, setVisible] = useState<boolean>(false)
-
-  useEffect(() => {
+export const CookieBanner: React.FC<CookieBannerProps> = ({
+  onOpenSettings,
+  onAccept,
+  visible: controlledVisible,
+}) => {
+  const [internalVisible, setInternalVisible] = useState<boolean>(() => {
+    if (controlledVisible !== undefined) return false
     try {
-      const consent = localStorage.getItem('sudoku_cookie_consent')
-      if (!consent) {
-        setVisible(true)
-      }
+      return !localStorage.getItem('sudoku_cookie_consent')
     } catch {
-      // LocalStorage unavailable
+      return false
     }
-  }, [])
+  })
+
+  const isVisible = controlledVisible !== undefined ? controlledVisible : internalVisible
 
   const handleAccept = () => {
     try {
@@ -31,24 +35,17 @@ export const CookieBanner: React.FC<CookieBannerProps> = ({ onOpenSettings }) =>
     } catch {
       // Ignore
     }
-    setVisible(false)
+    setInternalVisible(false)
+    onAccept?.()
   }
 
-  if (!visible) return null
+  if (!isVisible) return null
 
   return (
     <aside
       aria-label="Cookie consent"
+      className="cookie-consent-banner no-print"
       style={{
-        width: '100%',
-        backgroundColor: 'var(--bg-surface)',
-        borderBottom: '1px solid var(--border-subtle)',
-        padding: '8px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexWrap: 'wrap',
-        gap: '12px',
         zIndex: 40,
       }}
     >

@@ -115,6 +115,25 @@ export const Cell: React.FC<CellProps> = React.memo(
     }
     if (hasConflict) ariaLabel += ', conflict'
 
+    // Variant marker description in cell aria-label
+    if (decorationKind === 'center-dot') {
+      ariaLabel += ', center dot cell'
+    } else if (decorationKind === 'asterisk') {
+      ariaLabel += ', asterisk cell'
+    } else if (decorationKind === 'girandola') {
+      ariaLabel += ', girandola cell'
+    } else if (decorationKind === 'window') {
+      ariaLabel += ', window cell'
+    } else if (decorationKind === 'disjoint') {
+      ariaLabel += ', disjoint group cell'
+    } else if (isDiagonalMain && isDiagonalAnti) {
+      ariaLabel += ', diagonal intersection'
+    } else if (isDiagonalMain) {
+      ariaLabel += ', main diagonal cell'
+    } else if (isDiagonalAnti) {
+      ariaLabel += ', anti-diagonal cell'
+    }
+
     const cellOutline = isConflictWith
       ? '2px solid var(--danger)'
       : type === 'conflict' || isZeroCandContradiction
@@ -149,6 +168,15 @@ export const Cell: React.FC<CellProps> = React.memo(
         }}
         className={`sudoku-cell ${type === 'given' ? 'given' : ''} ${isHighlighted ? 'anim-pulse' : ''} ${hasConflict ? 'anim-conflict' : ''} ${decorationKind ? `cell-${decorationKind}` : ''}`.trim()}
       >
+        {decorationKind === 'center-dot' && (
+          <span className="cell-marker-symbol marker-center-dot" aria-label="Center dot marker" role="img" />
+        )}
+        {decorationKind === 'asterisk' && (
+          <span className="cell-marker-symbol marker-asterisk" aria-label="Asterisk marker" role="img" />
+        )}
+        {decorationKind === 'girandola' && (
+          <span className="cell-marker-symbol marker-girandola" aria-label="Girandola marker" role="img" />
+        )}
         {value !== 0 ? (
           <span
             className="cell-value tabular-nums"

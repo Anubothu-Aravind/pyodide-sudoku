@@ -8,7 +8,7 @@
  */
 
 import React from 'react'
-import { RotateCcw, RotateCw, Eraser } from 'lucide-react'
+import { RotateCcw, RotateCw, Eraser, Pencil } from 'lucide-react'
 
 export interface NumberPadProps {
   cells: number[]
@@ -21,19 +21,21 @@ export interface NumberPadProps {
   onUndo: () => void
   onRedo: () => void
   disabled?: boolean
+  showRemainingCounts?: boolean
 }
 
 export const NumberPad: React.FC<NumberPadProps> = ({
   cells,
-  notesMode: _notesMode,
+  notesMode = false,
   canUndo,
   canRedo,
   onSelectDigit,
   onClear,
-  onToggleNotes: _onToggleNotes,
+  onToggleNotes,
   onUndo,
   onRedo,
   disabled = false,
+  showRemainingCounts = false,
 }) => {
   // Count placed instances of each digit 1-9
   const counts: Record<number, number> = {}
@@ -53,8 +55,13 @@ export const NumberPad: React.FC<NumberPadProps> = ({
         margin: '14px auto 0',
       }}
     >
-      {/* Action controls row: UNDO, REDO, ERASE (visible on mobile <1000px; on desktop moved to side panel) */}
-      <div className="mobile-action-bar">
+      {/* Action controls row: UNDO, REDO, ERASE, NOTES (visible on mobile <1000px; on desktop moved to side panel) */}
+      <div
+        className="mobile-action-bar"
+        style={{
+          gridTemplateColumns: onToggleNotes ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)',
+        }}
+      >
         <button
           type="button"
           onClick={onUndo}
@@ -63,7 +70,7 @@ export const NumberPad: React.FC<NumberPadProps> = ({
           className="ui-btn ui-btn-outline"
           style={{
             minHeight: '44px',
-            padding: '8px 6px',
+            padding: '8px 4px',
             borderRadius: 'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',
@@ -87,7 +94,7 @@ export const NumberPad: React.FC<NumberPadProps> = ({
           className="ui-btn ui-btn-outline"
           style={{
             minHeight: '44px',
-            padding: '8px 6px',
+            padding: '8px 4px',
             borderRadius: 'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',
@@ -111,7 +118,7 @@ export const NumberPad: React.FC<NumberPadProps> = ({
           className="ui-btn ui-btn-outline"
           style={{
             minHeight: '44px',
-            padding: '8px 6px',
+            padding: '8px 4px',
             borderRadius: 'var(--radius-sm)',
             display: 'flex',
             alignItems: 'center',
@@ -125,14 +132,42 @@ export const NumberPad: React.FC<NumberPadProps> = ({
           <Eraser size={16} />
           <span>ERASE</span>
         </button>
+
+        {onToggleNotes && (
+          <button
+            type="button"
+            onClick={onToggleNotes}
+            disabled={disabled}
+            aria-label={notesMode ? 'Disable notes mode' : 'Enable notes mode'}
+            aria-pressed={notesMode}
+            className={`ui-btn ${notesMode ? 'ui-btn-primary' : 'ui-btn-outline'}`}
+            style={{
+              minHeight: '44px',
+              padding: '8px 4px',
+              borderRadius: 'var(--radius-sm)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              fontFamily: 'var(--font-display)',
+              fontSize: '0.78rem',
+              letterSpacing: '0.04em',
+            }}
+          >
+            <Pencil size={16} />
+            <span>NOTES</span>
+          </button>
+        )}
       </div>
 
-      {/* Digit buttons 1-9 */}
+      {/* Digit buttons 1-9: responsive minmax(0, 1fr) with minWidth 0 to fit any mobile viewport */}
       <div
+        className="numberpad-digits-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(9, 1fr)',
-          gap: '6px',
+          gridTemplateColumns: 'repeat(9, minmax(0, 1fr))',
+          gap: 'clamp(3px, 1.2vw, 6px)',
+          width: '100%',
         }}
       >
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => {
@@ -146,11 +181,13 @@ export const NumberPad: React.FC<NumberPadProps> = ({
               type="button"
               onClick={() => onSelectDigit(digit)}
               disabled={disabled}
-              aria-label={`Enter digit ${digit}, ${remaining} remaining`}
-              className="ui-btn"
+              aria-label={showRemainingCounts ? `Enter digit ${digit}, ${remaining} remaining` : `Enter digit ${digit}`}
+              className="ui-btn numberpad-digit-btn"
               style={{
-                minHeight: '52px',
-                padding: '4px 2px',
+                minHeight: '50px',
+                minWidth: '0',
+                width: '100%',
+                padding: '4px 1px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -161,12 +198,13 @@ export const NumberPad: React.FC<NumberPadProps> = ({
                 opacity: isComplete ? 0.35 : 1,
                 cursor: disabled ? 'not-allowed' : 'pointer',
                 transition: 'all 0.15s ease-in-out',
+                boxSizing: 'border-box',
               }}
             >
               <span
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: '1.35rem',
+                  fontSize: 'clamp(1.05rem, 3.8vw, 1.35rem)',
                   fontWeight: 700,
                   color: isComplete ? 'var(--text-muted)' : 'var(--accent-blue)',
                   lineHeight: 1,
@@ -174,16 +212,18 @@ export const NumberPad: React.FC<NumberPadProps> = ({
               >
                 {digit}
               </span>
-              <span
-                className="tabular-nums"
-                style={{
-                  fontSize: '0.62rem',
-                  color: 'var(--text-secondary)',
-                  marginTop: '3px',
-                }}
-              >
-                {isComplete ? '✓' : remaining}
-              </span>
+              {showRemainingCounts && (
+                <span
+                  className="tabular-nums"
+                  style={{
+                    fontSize: '0.62rem',
+                    color: 'var(--text-secondary)',
+                    marginTop: '2px',
+                  }}
+                >
+                  {isComplete ? '✓' : remaining}
+                </span>
+              )}
             </button>
           )
         })}

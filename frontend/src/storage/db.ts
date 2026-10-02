@@ -25,6 +25,8 @@ export const DEFAULT_SETTINGS: ValidatedUserSettings = {
   autoRemoveNotes: true,
   quietScreenReader: false,
   soundEnabled: true,
+  showRemainingCounts: false,
+  enableHints: true,
 }
 
 export const DEFAULT_STATS: ValidatedUserStats = {

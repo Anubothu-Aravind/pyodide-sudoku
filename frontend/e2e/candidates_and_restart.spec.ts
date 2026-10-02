@@ -204,7 +204,7 @@ test.describe('Candidate Sync & Restart Dialog E2E Tests', () => {
     await variantSelect.selectOption('diagonal')
     await page.waitForTimeout(600)
     const cell0 = page.locator('[role="gridcell"]').first()
-    await expect(cell0).toHaveCSS('background-color', 'rgba(78, 161, 255, 0.07)')
+    await expect(cell0).toHaveCSS('background-color', /rgba\((78,\s*161,\s*255,\s*0\.07|29,\s*78,\s*216,\s*0\.06)\)/)
 
     // Enter digit in diagonal mode
     const diagEmptyCell = page.locator('.sudoku-cell:not(.given)').first()
@@ -221,6 +221,6 @@ test.describe('Candidate Sync & Restart Dialog E2E Tests', () => {
     // Verify board cleared, but variant remains Diagonal
     await expect(diagEmptyCell.locator('.cell-value')).toHaveCount(0)
     await expect(variantSelect).toHaveValue('diagonal')
-    await expect(cell0).toHaveCSS('background-color', 'rgba(78, 161, 255, 0.07)')
+    await expect(cell0).toHaveCSS('background-color', /rgba\((78,\s*161,\s*255,\s*0\.07|29,\s*78,\s*216,\s*0\.06)\)/)
   })
 })

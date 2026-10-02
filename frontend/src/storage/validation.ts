@@ -69,6 +69,8 @@ export const UserSettingsSchema = z.object({
   autoRemoveNotes: z.boolean(),
   quietScreenReader: z.boolean(),
   soundEnabled: z.boolean(),
+  showRemainingCounts: z.boolean().default(false),
+  enableHints: z.boolean().default(true),
 })
 
 export const SolverHistoryItemSchema = z.object({

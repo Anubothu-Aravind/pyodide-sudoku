@@ -195,7 +195,7 @@ export const LevelMap: React.FC<LevelMapProps> = ({
                           : isLocked
                           ? 'var(--bg-deep)'
                           : 'var(--bg-surface)',
-                        color: isCurrent ? 'var(--bg-deep)' : 'var(--text-high)',
+                        color: isCurrent ? 'var(--text-inverse)' : 'var(--text-high)',
                         border: isCurrent
                           ? '2px solid var(--text-high)'
                           : isBoss
@@ -217,7 +217,7 @@ export const LevelMap: React.FC<LevelMapProps> = ({
                       {isBoss && (
                         <Crown
                           size={12}
-                          color={isCurrent ? 'var(--bg-deep)' : 'var(--accent-blue)'}
+                          color={isCurrent ? 'var(--text-inverse)' : 'var(--accent-blue)'}
                           style={{ position: 'absolute', top: '3px', right: '3px' }}
                         />
                       )}
@@ -255,7 +255,7 @@ export const LevelMap: React.FC<LevelMapProps> = ({
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '2px',
-                                backgroundColor: 'var(--bg-deep)',
+                                backgroundColor: 'var(--bg-surface)',
                                 color: 'var(--accent-blue)',
                                 padding: '1px 5px',
                                 borderRadius: '2px',

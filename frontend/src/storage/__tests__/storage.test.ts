@@ -142,6 +142,8 @@ describe('Storage Layer & Export/Import', () => {
         autoRemoveNotes: false,
         quietScreenReader: true,
         soundEnabled: false,
+        showRemainingCounts: false,
+        enableHints: true,
       },
     }
 
@@ -225,6 +227,24 @@ describe('Storage Layer & Export/Import', () => {
     expect(saved?.stars).toBe(3)
     expect(saved?.best_time_ms).toBe(120000)
     expect(saved?.mistakes_best).toBe(0)
+  })
+
+  it('handles showRemainingCounts and enableHints settings defaults and persistence', async () => {
+    // Check initial defaults
+    const defaults = await storage.getSettings()
+    expect(defaults.showRemainingCounts).toBe(false)
+    expect(defaults.enableHints).toBe(true)
+
+    // Save customized settings
+    await storage.saveSettings({
+      ...defaults,
+      showRemainingCounts: true,
+      enableHints: false,
+    })
+
+    const updated = await storage.getSettings()
+    expect(updated.showRemainingCounts).toBe(true)
+    expect(updated.enableHints).toBe(false)
   })
 })
 

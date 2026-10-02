@@ -46,7 +46,7 @@ export const BackToTop: React.FC = () => {
         minWidth: '42px',
         padding: 0,
         borderRadius: 'var(--radius-sm)',
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.6)',
+        boxShadow: 'var(--shadow-md)',
         zIndex: 80,
         display: 'flex',
         alignItems: 'center',

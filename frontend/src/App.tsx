@@ -11,7 +11,8 @@ import { PlayView } from './components/play/PlayView'
 import { SettingsModal } from './components/common/SettingsModal'
 import { CookieBanner } from './components/common/CookieBanner'
 import { BackToTop } from './components/common/BackToTop'
-import { storage } from './storage/db'
+import { storage, DEFAULT_SETTINGS } from './storage/db'
+import type { ValidatedUserSettings } from './storage/validation'
 import type { Difficulty } from './types'
 import { AlertCircle } from 'lucide-react'
 
@@ -19,6 +20,7 @@ export const App: React.FC = () => {
   const [currentMode, setCurrentMode] = useState<AppMode>('levels')
   const [refreshKey, setRefreshKey] = useState<number>(0)
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false)
+  const [userSettings, setUserSettings] = useState<ValidatedUserSettings>(DEFAULT_SETTINGS)
   const [totalStars, setTotalStars] = useState<number>(0)
   const [streakDays, setStreakDays] = useState<number>(0)
   const [storageBanner, setStorageBanner] = useState<boolean>(false)
@@ -29,6 +31,20 @@ export const App: React.FC = () => {
   const [playInitialSeed, setPlayInitialSeed] = useState<string | undefined>()
   const [playInitialSubMode, setPlayInitialSubMode] = useState<'play' | 'solver'>('play')
   const [returnToMapSignal, setReturnToMapSignal] = useState<number>(0)
+  const [showCookieBanner, setShowCookieBanner] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem('sudoku_cookie_consent')
+    } catch {
+      return false
+    }
+  })
+
+  const handleAcceptCookies = useCallback(() => {
+    try {
+      localStorage.setItem('sudoku_cookie_consent', 'accepted')
+    } catch {}
+    setShowCookieBanner(false)
+  }, [])
 
   // Refresh global stats (stars, streak) and re-mount views
   const refreshGlobalStats = useCallback(async () => {
@@ -53,11 +69,28 @@ export const App: React.FC = () => {
   const applyTheme = useCallback((theme: 'system' | 'light' | 'dark') => {
     let resolvedTheme = theme
     if (theme === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      const prefersDark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
       resolvedTheme = prefersDark ? 'dark' : 'light'
     }
     document.documentElement.setAttribute('data-theme', resolvedTheme)
   }, [])
+
+  // Listen for system theme changes if theme setting is 'system'
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleMediaChange = () => {
+      storage.getSettings().then((s) => {
+        if (s.theme === 'system') {
+          applyTheme('system')
+        }
+      })
+    }
+    if (media.addEventListener) {
+      media.addEventListener('change', handleMediaChange)
+      return () => media.removeEventListener('change', handleMediaChange)
+    }
+  }, [applyTheme])
 
   // Helper to retrieve the current app base path without trailing slash
   const getSubpath = () => {
@@ -110,6 +143,7 @@ export const App: React.FC = () => {
     refreshGlobalStats()
 
     storage.getSettings().then((s) => {
+      setUserSettings(s)
       applyTheme(s.theme)
     })
 
@@ -178,14 +212,25 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-deep)' }}>
-      {/* Top Navbar */}
-      <Navbar
-        currentMode={currentMode}
-        onSelectMode={handleSelectMode}
-        totalStars={totalStars}
-        streakDays={streakDays}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-      />
+      {/* Top Sticky Header */}
+      <div className="app-sticky-header">
+        {showCookieBanner && (
+          <div className="mobile-cookie-slot">
+            <CookieBanner
+              visible={showCookieBanner}
+              onAccept={handleAcceptCookies}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+            />
+          </div>
+        )}
+        <Navbar
+          currentMode={currentMode}
+          onSelectMode={handleSelectMode}
+          totalStars={totalStars}
+          streakDays={streakDays}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+      </div>
 
       {/* Storage unavailable warning banner */}
       {storageBanner && (
@@ -215,6 +260,7 @@ export const App: React.FC = () => {
         {currentMode === 'levels' && (
           <LevelsView
             key={refreshKey}
+            userSettings={userSettings}
             onWatchSolver={handleWatchSolver}
             returnToMapSignal={returnToMapSignal}
           />
@@ -223,6 +269,7 @@ export const App: React.FC = () => {
         {currentMode === 'play' && (
           <PlayView
             key={refreshKey}
+            userSettings={userSettings}
             initialDifficulty={playInitialDiff}
             initialSeed={playInitialSeed}
             initialPuzzle={playTargetPuzzle}
@@ -237,12 +284,23 @@ export const App: React.FC = () => {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        onSettingsChanged={(s) => applyTheme(s.theme)}
+        onSettingsChanged={(s) => {
+          setUserSettings(s)
+          applyTheme(s.theme)
+        }}
         onProgressUpdated={handleProgressUpdated}
       />
 
-      {/* Cookie Consent Banner */}
-      <CookieBanner onOpenSettings={() => setIsSettingsOpen(true)} />
+      {/* Desktop Cookie Consent Banner (at bottom) */}
+      {showCookieBanner && (
+        <div className="desktop-cookie-slot">
+          <CookieBanner
+            visible={showCookieBanner}
+            onAccept={handleAcceptCookies}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+          />
+        </div>
+      )}
 
       {/* Back To Top Button */}
       <BackToTop />

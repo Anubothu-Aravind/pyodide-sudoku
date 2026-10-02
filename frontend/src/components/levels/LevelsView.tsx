@@ -12,7 +12,7 @@ import { playReducer, createInitialPlayState } from '../../reducers/playReducer'
 import { sudokuWorker } from '../../worker/sudokuWorkerClient'
 import { storage } from '../../storage/db'
 import { tabSync } from '../../storage/sync'
-import type { ValidatedLevelRecord } from '../../storage/validation'
+import type { ValidatedLevelRecord, ValidatedUserSettings } from '../../storage/validation'
 import type { TraceSolveResult } from '../../types'
 import { ReplayEngine, type ReplayFrame } from '../../solver/replayEngine'
 import { SolverPlayback } from '../solver/SolverPlayback'
@@ -32,14 +32,18 @@ import {
 } from 'lucide-react'
 
 export interface LevelsViewProps {
+  userSettings?: ValidatedUserSettings
   onWatchSolver?: (puzzle: string) => void
   returnToMapSignal?: number
 }
 
 export const LevelsView: React.FC<LevelsViewProps> = ({
+  userSettings,
   onWatchSolver: _onWatchSolver,
   returnToMapSignal,
 }) => {
+  const showRemainingCounts = userSettings?.showRemainingCounts ?? false
+  const enableHints = userSettings?.enableHints ?? true
   const [viewMode, setViewMode] = useState<'map' | 'play'>('map')
   const [currentLevelNumber, setCurrentLevelNumber] = useState<number>(1)
   const [currentRecord, setCurrentRecord] = useState<ValidatedLevelRecord | null>(null)
@@ -837,6 +841,7 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
                 notesMode={state.notesMode}
                 canUndo={state.history.length > 0}
                 canRedo={state.redoStack.length > 0}
+                showRemainingCounts={showRemainingCounts}
                 onSelectDigit={handleEditDigit}
                 onClear={handleClearCell}
                 onToggleNotes={() => dispatch({ type: 'TOGGLE_NOTES_MODE' })}
@@ -904,90 +909,100 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
 
         {/* Right Column: Side Panel (sticky on desktop, contents on mobile) */}
         <div className="game-side-panel">
-          {/* Header Section */}
-          <div className="panel-header-section">
+          {/* Top Panel: Unified Level Console Card */}
+          <div
+            className="panel-header-section ui-card"
+            style={{
+              padding: '12px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              width: '100%',
+              backgroundColor: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            {/* Top row: Map button, Level title & World badge, Timer & Controls */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                flexWrap: 'wrap',
                 gap: '8px',
-                backgroundColor: 'var(--bg-surface)',
-                padding: '12px 16px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                boxShadow: 'var(--shadow-sm)',
+                width: '100%',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  onClick={() => setShowQuitConfirm(true)}
-                  title="Quit game to campaign map (Press L)"
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--bg-base)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Home size={16} />
-                  <span>Quit to Map</span>
-                </button>
+              {/* Left: Quit to Map */}
+              <button
+                onClick={() => setShowQuitConfirm(true)}
+                title="Quit game to campaign map (Press L)"
+                aria-label="Quit to Map"
+                className="ui-btn ui-btn-outline"
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  minHeight: '34px',
+                  minWidth: 'auto',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Home size={15} />
+                <span>Quit to Map</span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => setShowQuitConfirm(true)}
-                  title="Quit to Map"
-                  aria-label={`Level ${currentLevelNumber}`}
-                  className="level-title-btn"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: '4px 8px',
-                    margin: '-4px 0',
-                    borderRadius: 'var(--radius-sm)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'background-color 0.15s ease',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span
-                      className="level-title-text"
-                      style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', transition: 'color 0.15s ease' }}
-                    >
-                      Level {currentLevelNumber}
-                    </span>
-                    {currentRecord?.is_boss && <Crown size={14} color="var(--color-star)" />}
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    World {currentRecord?.world} • {currentRecord?.difficulty}
+              {/* Center: Level & Difficulty */}
+              <button
+                type="button"
+                onClick={() => setShowQuitConfirm(true)}
+                title="Quit to Map"
+                aria-label={`Level ${currentLevelNumber}`}
+                className="level-title-btn"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '2px 6px',
+                  borderRadius: 'var(--radius-sm)',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  transition: 'background-color 0.15s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span
+                    className="level-title-text"
+                    style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', letterSpacing: '0.02em', transition: 'color 0.15s ease' }}
+                  >
+                    Level {currentLevelNumber}
                   </span>
-                </button>
-              </div>
+                  {currentRecord?.is_boss && <Crown size={15} color="var(--color-star)" />}
+                </div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'capitalize', fontWeight: 500 }}>
+                  World {currentRecord?.world} • {currentRecord?.difficulty}
+                </span>
+              </button>
 
-              {/* Timer & Par Time */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div>
+              {/* Right: Timer & Pause / Restart */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ textAlign: 'right' }}>
                   <span
                     className="tabular-nums"
-                    style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}
+                    style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', lineHeight: 1.1 }}
                   >
                     {formatTimer(state.elapsedMs)}
                   </span>
                   {currentRecord && (
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>
-                      Par: {formatTimer(currentRecord.par_time_seconds * 1000)}
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', lineHeight: 1 }}>
+                      Par {formatTimer(currentRecord.par_time_seconds * 1000)}
                     </span>
                   )}
                 </div>
@@ -995,9 +1010,21 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
                 <button
                   onClick={() => dispatch({ type: 'SET_PAUSED', paused: !state.isPaused })}
                   aria-label={state.isPaused ? 'Resume level' : 'Pause level'}
-                  style={{ padding: '6px', borderRadius: 'var(--radius-sm)', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                  style={{
+                    padding: '6px',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-secondary)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '32px',
+                    minWidth: '32px',
+                  }}
                 >
-                  {state.isPaused ? <Play size={18} /> : <Pause size={18} />}
+                  {state.isPaused ? <Play size={15} /> : <Pause size={15} />}
                 </button>
 
                 <button
@@ -1008,27 +1035,27 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
                     padding: '6px',
                     borderRadius: 'var(--radius-sm)',
                     color: 'var(--text-secondary)',
+                    backgroundColor: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)',
                     cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '32px',
+                    minWidth: '32px',
                   }}
                 >
-                  <RotateCcw size={18} />
+                  <RotateCcw size={15} />
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* Sub-Mode Tabs Section */}
-          <div className="panel-tabs-section">
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '8px',
-              }}
-            >
-              <div className="ui-segmented" role="tablist">
+            {/* Divider line */}
+            <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', width: '100%', opacity: 0.6 }} />
+
+            {/* Sub-Mode Tabs */}
+            <div className="panel-tabs-section" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+              <div className="ui-segmented" role="tablist" style={{ width: '100%', backgroundColor: 'var(--bg-base)' }}>
                 <button
                   role="tab"
                   aria-selected={levelSubMode === 'play'}
@@ -1043,7 +1070,7 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
                   className={`ui-segmented-item ${levelSubMode === 'solver' && levelSolverType === 'smart' ? 'active' : ''}`}
                   onClick={() => handleOpenSolver('smart')}
                 >
-                  <Eye size={15} />
+                  <Eye size={14} />
                   <span>Watch Solver</span>
                 </button>
                 <button
@@ -1052,27 +1079,32 @@ export const LevelsView: React.FC<LevelsViewProps> = ({
                   className={`ui-segmented-item ${levelSubMode === 'solver' && levelSolverType === 'naive' ? 'active' : ''}`}
                   onClick={() => handleOpenSolver('naive')}
                 >
-                  <Eye size={15} />
+                  <Eye size={14} />
                   <span>Naive (red)</span>
                 </button>
               </div>
 
-              {levelSubMode === 'play' && (
+              {/* In Play Mode: Get Hint Button */}
+              {levelSubMode === 'play' && enableHints && (
                 <button
                   onClick={handleGetHint}
                   disabled={state.isPaused || state.isSolved || isLoading}
                   className="ui-btn ui-btn-outline"
                   style={{
-                    padding: '6px 14px',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
+                    width: '100%',
+                    padding: '7px 14px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                     color: 'var(--color-logic)',
+                    minHeight: '36px',
+                    borderRadius: 'var(--radius-sm)',
                   }}
                 >
-                  <Lightbulb size={16} />
+                  <Lightbulb size={15} />
                   <span>Get Hint</span>
                 </button>
               )}
